@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import {
   FileSpreadsheet,
@@ -152,8 +152,7 @@ export default function UploadFieldsScreen() {
     setParseErrors([]);
     
     try {
-      const file = new File(uri);
-      const content = await file.text();
+      const content = await FileSystem.readAsStringAsync(uri);
       console.log('File content length:', content.length);
       await parseContent(content);
     } catch (error) {
@@ -347,13 +346,14 @@ export default function UploadFieldsScreen() {
         URL.revokeObjectURL(url);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        const file = new File(Paths.cache, 'fields_template.csv');
-        file.create({ overwrite: true });
-        file.write(FIELDS_TEMPLATE_CSV);
+        const fileUri = FileSystem.cacheDirectory + 'fields_template.csv';
+        await FileSystem.writeAsStringAsync(fileUri, FIELDS_TEMPLATE_CSV, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
         
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(file.uri, {
+          await Sharing.shareAsync(fileUri, {
             mimeType: 'text/csv',
             dialogTitle: 'Save Fields Template',
             UTI: 'public.comma-separated-values-text',

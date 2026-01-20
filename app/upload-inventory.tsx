@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import {
@@ -160,8 +160,7 @@ export default function UploadInventoryScreen() {
     setParseErrors([]);
     
     try {
-      const file = new File(uri);
-      const content = await file.text();
+      const content = await FileSystem.readAsStringAsync(uri);
       console.log('File content length:', content.length);
       await parseContent(content);
     } catch (error) {
@@ -374,13 +373,14 @@ export default function UploadInventoryScreen() {
         URL.revokeObjectURL(url);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        const file = new File(Paths.cache, 'inventory_template.csv');
-        file.create({ overwrite: true });
-        file.write(INVENTORY_TEMPLATE_CSV);
+        const fileUri = FileSystem.cacheDirectory + 'inventory_template.csv';
+        await FileSystem.writeAsStringAsync(fileUri, INVENTORY_TEMPLATE_CSV, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
         
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
-          await Sharing.shareAsync(file.uri, {
+          await Sharing.shareAsync(fileUri, {
             mimeType: 'text/csv',
             dialogTitle: 'Save Inventory Template',
             UTI: 'public.comma-separated-values-text',

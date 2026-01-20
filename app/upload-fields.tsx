@@ -346,9 +346,9 @@ export default function UploadFieldsScreen() {
         URL.revokeObjectURL(url);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        const fileUri = FileSystem.cacheDirectory + 'fields_template.csv';
+        const fileUri = (FileSystem as any).cacheDirectory + 'fields_template.csv';
         await FileSystem.writeAsStringAsync(fileUri, FIELDS_TEMPLATE_CSV, {
-          encoding: FileSystem.EncodingType.UTF8,
+          encoding: 'utf8' as any,
         });
         
         const canShare = await Sharing.isAvailableAsync();

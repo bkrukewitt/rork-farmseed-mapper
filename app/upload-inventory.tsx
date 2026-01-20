@@ -373,9 +373,9 @@ export default function UploadInventoryScreen() {
         URL.revokeObjectURL(url);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        const fileUri = FileSystem.cacheDirectory + 'inventory_template.csv';
+        const fileUri = (FileSystem as any).cacheDirectory + 'inventory_template.csv';
         await FileSystem.writeAsStringAsync(fileUri, INVENTORY_TEMPLATE_CSV, {
-          encoding: FileSystem.EncodingType.UTF8,
+          encoding: 'utf8' as any,
         });
         
         const canShare = await Sharing.isAvailableAsync();

@@ -8,9 +8,13 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  KeyboardAvoidingView,
+  Keyboard,
+  InputAccessoryView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { Trash2, Check, Layers, MapPin, Ruler, Wheat, Calendar } from 'lucide-react-native';
+import { Trash2, Check, Layers, MapPin, Ruler, Wheat, Calendar, ChevronDown } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 
@@ -58,6 +62,12 @@ export default function FieldDetailScreen() {
   const [notes, setNotes] = useState(field?.notes || '');
   const [color, setColor] = useState(field?.color || FIELD_COLORS[0]);
   const [isEditing, setIsEditing] = useState(false);
+  
+  const inputAccessoryViewID = 'keyboard-accessory-field-detail';
+  
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
 
   useEffect(() => {
     if (field) {
@@ -141,7 +151,17 @@ export default function FieldDetailScreen() {
           ),
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <TouchableWithoutFeedback onPress={dismissKeyboard}>
+          <ScrollView 
+            style={styles.scrollView} 
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+          >
         <View style={styles.mapSection}>
           {Platform.OS === 'web' ? (
             <View style={styles.webMapPlaceholder}>
@@ -217,6 +237,7 @@ export default function FieldDetailScreen() {
                   onChangeText={setName}
                   placeholder="Field name"
                   placeholderTextColor={Colors.textLight}
+                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
                 />
               </View>
 
@@ -229,6 +250,7 @@ export default function FieldDetailScreen() {
                   placeholder="e.g., 80"
                   placeholderTextColor={Colors.textLight}
                   keyboardType="decimal-pad"
+                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
                 />
               </View>
 
@@ -287,6 +309,7 @@ export default function FieldDetailScreen() {
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
+                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
                 />
               </View>
 
@@ -350,7 +373,20 @@ export default function FieldDetailScreen() {
             ))}
           </View>
         )}
-      </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+        
+        {Platform.OS === 'ios' && (
+          <InputAccessoryView nativeID={inputAccessoryViewID}>
+            <View style={styles.keyboardAccessory}>
+              <TouchableOpacity style={styles.dismissKeyboardButton} onPress={dismissKeyboard}>
+                <ChevronDown size={20} color={Colors.primary} />
+                <Text style={styles.dismissKeyboardText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </InputAccessoryView>
+        )}
+      </KeyboardAvoidingView>
     </>
   );
 }
@@ -359,6 +395,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     paddingBottom: 40,
@@ -599,5 +638,28 @@ const styles = StyleSheet.create({
   entryDate: {
     fontSize: 13,
     color: Colors.textLight,
+  },
+  keyboardAccessory: {
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  dismissKeyboardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 8,
+    gap: 4,
+  },
+  dismissKeyboardText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.primary,
   },
 });

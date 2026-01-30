@@ -11,6 +11,7 @@ import {
   Keyboard,
   InputAccessoryView,
   KeyboardAvoidingView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
@@ -151,9 +152,11 @@ export default function AddFieldScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <Stack.Screen options={{ title: 'Add Field' }} />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <TouchableWithoutFeedback onPress={dismissKeyboard}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Field Location</Text>
           <Text style={styles.sectionSubtitle}>Tap on the map to set the field location</Text>
@@ -306,7 +309,8 @@ export default function AddFieldScreen() {
           <Check size={20} color={Colors.textInverse} />
           <Text style={styles.saveButtonText}>Save Field</Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </TouchableWithoutFeedback>
 
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={inputAccessoryViewID}>

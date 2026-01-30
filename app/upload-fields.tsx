@@ -9,6 +9,10 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
+  KeyboardAvoidingView,
+  Keyboard,
+  InputAccessoryView,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -24,6 +28,7 @@ import {
   Cloud,
   Link as LinkIcon,
   FileDown,
+  ChevronDown,
 } from 'lucide-react-native';
 import * as Sharing from 'expo-sharing';
 import Colors from '@/constants/colors';
@@ -59,6 +64,12 @@ export default function UploadFieldsScreen() {
   const [dropboxUrl, setDropboxUrl] = useState('');
   const [showDropboxInput, setShowDropboxInput] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  
+  const inputAccessoryViewID = 'keyboard-accessory-upload-fields';
+  
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+  };
 
   const pickDocument = async () => {
     try {
@@ -372,15 +383,20 @@ export default function UploadFieldsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <Stack.Screen options={{ title: 'Import Fields' }} />
       
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <TouchableWithoutFeedback onPress={dismissKeyboard}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.headerSection}>
           <View style={styles.headerIcon}>
             <FileSpreadsheet size={32} color={Colors.primary} />
@@ -469,6 +485,7 @@ export default function UploadFieldsScreen() {
                   onChangeText={setDropboxUrl}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
                 />
               </View>
               <TouchableOpacity
@@ -573,8 +590,20 @@ export default function UploadFieldsScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+      
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={inputAccessoryViewID}>
+          <View style={styles.keyboardAccessory}>
+            <TouchableOpacity style={styles.dismissKeyboardButton} onPress={dismissKeyboard}>
+              <ChevronDown size={20} color={Colors.primary} />
+              <Text style={styles.dismissKeyboardText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </InputAccessoryView>
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -897,5 +926,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.textInverse,
+  },
+  keyboardAccessory: {
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  dismissKeyboardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.primary + '15',
+    borderRadius: 8,
+    gap: 4,
+  },
+  dismissKeyboardText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.primary,
   },
 });

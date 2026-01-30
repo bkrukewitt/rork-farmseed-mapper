@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -64,9 +64,27 @@ export default function FieldDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   
   const inputAccessoryViewID = 'keyboard-accessory-field-detail';
+  const scrollViewRef = useRef<ScrollView>(null);
+  const inputPositions = useRef<{ [key: string]: number }>({});
   
   const dismissKeyboard = () => {
     Keyboard.dismiss();
+  };
+
+  const scrollToInput = (inputName: string) => {
+    const yPosition = inputPositions.current[inputName];
+    if (yPosition !== undefined && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, yPosition - 150),
+          animated: true,
+        });
+      }, 150);
+    }
+  };
+
+  const handleInputLayout = (inputName: string, y: number) => {
+    inputPositions.current[inputName] = y;
   };
 
   useEffect(() => {
@@ -158,6 +176,7 @@ export default function FieldDetailScreen() {
       >
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
           <ScrollView 
+            ref={scrollViewRef}
             style={styles.scrollView} 
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
@@ -229,7 +248,10 @@ export default function FieldDetailScreen() {
 
           {isEditing ? (
             <>
-              <View style={styles.inputGroup}>
+              <View 
+                style={styles.inputGroup}
+                onLayout={(e) => handleInputLayout('name', e.nativeEvent.layout.y)}
+              >
                 <Text style={styles.label}>Field Name</Text>
                 <TextInput
                   style={styles.input}
@@ -238,10 +260,14 @@ export default function FieldDetailScreen() {
                   placeholder="Field name"
                   placeholderTextColor={Colors.textLight}
                   inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
+                  onFocus={() => scrollToInput('name')}
                 />
               </View>
 
-              <View style={styles.inputGroup}>
+              <View 
+                style={styles.inputGroup}
+                onLayout={(e) => handleInputLayout('acreage', e.nativeEvent.layout.y)}
+              >
                 <Text style={styles.label}>Acreage</Text>
                 <TextInput
                   style={styles.input}
@@ -251,6 +277,7 @@ export default function FieldDetailScreen() {
                   placeholderTextColor={Colors.textLight}
                   keyboardType="decimal-pad"
                   inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
+                  onFocus={() => scrollToInput('acreage')}
                 />
               </View>
 
@@ -298,7 +325,10 @@ export default function FieldDetailScreen() {
                 </View>
               </View>
 
-              <View style={styles.inputGroup}>
+              <View 
+                style={styles.inputGroup}
+                onLayout={(e) => handleInputLayout('notes', e.nativeEvent.layout.y)}
+              >
                 <Text style={styles.label}>Notes</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
@@ -310,6 +340,7 @@ export default function FieldDetailScreen() {
                   numberOfLines={3}
                   textAlignVertical="top"
                   inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
+                  onFocus={() => scrollToInput('notes')}
                 />
               </View>
 

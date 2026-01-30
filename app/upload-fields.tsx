@@ -66,9 +66,27 @@ export default function UploadFieldsScreen() {
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
   
   const inputAccessoryViewID = 'keyboard-accessory-upload-fields';
+  const scrollViewRef = useRef<ScrollView>(null);
+  const inputPositions = useRef<{ [key: string]: number }>({});
   
   const dismissKeyboard = () => {
     Keyboard.dismiss();
+  };
+
+  const scrollToInput = (inputName: string) => {
+    const yPosition = inputPositions.current[inputName];
+    if (yPosition !== undefined && scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(0, yPosition - 150),
+          animated: true,
+        });
+      }, 150);
+    }
+  };
+
+  const handleInputLayout = (inputName: string, y: number) => {
+    inputPositions.current[inputName] = y;
   };
 
   const pickDocument = async () => {
@@ -392,6 +410,7 @@ export default function UploadFieldsScreen() {
       
       <TouchableWithoutFeedback onPress={dismissKeyboard}>
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scrollView}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -474,7 +493,10 @@ export default function UploadFieldsScreen() {
           </TouchableOpacity>
 
           {showDropboxInput && (
-            <View style={styles.dropboxInputContainer}>
+            <View 
+              style={styles.dropboxInputContainer}
+              onLayout={(e) => handleInputLayout('dropboxUrl', e.nativeEvent.layout.y)}
+            >
               <View style={styles.dropboxInputRow}>
                 <LinkIcon size={20} color={Colors.textLight} />
                 <TextInput
@@ -486,6 +508,7 @@ export default function UploadFieldsScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
+                  onFocus={() => scrollToInput('dropboxUrl')}
                 />
               </View>
               <TouchableOpacity

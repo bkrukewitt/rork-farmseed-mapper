@@ -65,6 +65,7 @@ export default function AddInventoryScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const keyboardHeight = useRef<number>(300);
   const inputAccessoryViewID = 'keyboard-accessory-inventory';
 
   useEffect(() => {
@@ -94,6 +95,20 @@ export default function AddInventoryScreen() {
     }
   }, [isEditMode, editId, getInventoryItemById]);
   const inputPositions = useRef<{ [key: string]: number }>({});
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
+      keyboardHeight.current = e.endCoordinates.height;
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardHeight.current = 300;
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const toggleTrait = (trait: string) => {
     if (selectedTraits.includes(trait)) {
@@ -171,11 +186,13 @@ export default function AddInventoryScreen() {
     const yPosition = inputPositions.current[inputName];
     if (yPosition !== undefined && scrollViewRef.current) {
       setTimeout(() => {
+        // Scroll to show input above keyboard with some padding
+        const offset = keyboardHeight.current + 100; // keyboard height + padding
         scrollViewRef.current?.scrollTo({
-          y: Math.max(0, yPosition - 150),
+          y: Math.max(0, yPosition - offset),
           animated: true,
         });
-      }, 150);
+      }, 100);
     }
   };
 

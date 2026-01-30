@@ -74,6 +74,21 @@ export default function AddFieldScreen() {
   const inputAccessoryViewID = 'keyboard-accessory-field';
   const scrollViewRef = useRef<ScrollView>(null);
   const inputPositions = useRef<{ [key: string]: number }>({});
+  const keyboardHeight = useRef<number>(300);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
+      keyboardHeight.current = e.endCoordinates.height;
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      keyboardHeight.current = 300;
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const dismissKeyboard = () => {
     Keyboard.dismiss();
@@ -83,11 +98,13 @@ export default function AddFieldScreen() {
     const yPosition = inputPositions.current[inputName];
     if (yPosition !== undefined && scrollViewRef.current) {
       setTimeout(() => {
+        // Scroll to show input above keyboard with some padding
+        const offset = keyboardHeight.current + 100; // keyboard height + padding
         scrollViewRef.current?.scrollTo({
-          y: Math.max(0, yPosition - 150),
+          y: Math.max(0, yPosition - offset),
           animated: true,
         });
-      }, 150);
+      }, 100);
     }
   };
 

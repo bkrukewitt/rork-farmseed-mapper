@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import {
   Layers,
@@ -79,24 +79,77 @@ export default function FieldsScreen() {
         URL.revokeObjectURL(url);
         Alert.alert('Success', 'Template downloaded successfully');
       } else {
-        const file = new File(Paths.document, 'fields_template.csv');
-        file.create({ overwrite: true });
-        file.write(FIELD_CSV_TEMPLATE);
+        // Use FileSystem API for better reliability
+        const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+        if (!directory) {
+          throw new Error('No file system directory available');
+        }
         
+        const fileName = 'fields_template.csv';
+        const fileUri = directory + fileName;
+        
+        console.log('[DEBUG] Download template - Writing file to:', fileUri);
+        
+        // Write the file
+        await FileSystem.writeAsStringAsync(fileUri, FIELD_CSV_TEMPLATE, {
+          encoding: FileSystem.EncodingType.UTF8 as any,
+        });
+        
+        // Verify file exists
+        const fileInfo = await FileSystem.getInfoAsync(fileUri);
+        console.log('[DEBUG] File created:', fileInfo.exists, fileInfo);
+        
+        if (!fileInfo.exists) {
+          throw new Error('File was not created successfully');
+        }
+        
+        // Check if sharing is available
         const canShare = await Sharing.isAvailableAsync();
+        console.log('[DEBUG] Sharing available:', canShare);
+        
         if (canShare) {
-          await Sharing.shareAsync(file.uri, {
-            mimeType: 'text/csv',
-            dialogTitle: 'Download Fields Template',
-          });
+          try {
+            const result = await Sharing.shareAsync(fileUri, {
+              mimeType: 'text/csv',
+              dialogTitle: 'Download Fields Template',
+              UTI: 'public.comma-separated-values-text',
+            });
+            console.log('[DEBUG] Sharing result:', result);
+            
+            if (result.action === Sharing.SharingResultAction.shared) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else if (result.action === Sharing.SharingResultAction.dismissedActionSheet) {
+              console.log('[DEBUG] User dismissed share sheet');
+            }
+          } catch (shareError: any) {
+            console.error('[DEBUG] Sharing error:', shareError);
+            throw new Error(`Sharing failed: ${shareError.message || 'Unknown error'}`);
+          }
         } else {
-          Alert.alert('Template Ready', 'Template saved to app documents');
+          Alert.alert(
+            'Template Saved',
+            `Template saved to app documents.\n\nFile: ${fileName}\n\nYou can access it through the Files app.`,
+            [{ text: 'OK' }]
+          );
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       }
-      console.log('Fields template downloaded');
-    } catch (error) {
-      console.error('Download template error:', error);
-      Alert.alert('Error', 'Failed to download template');
+      console.log('[DEBUG] Fields template downloaded successfully');
+    } catch (error: any) {
+      console.error('[DEBUG] Download template error:', error);
+      console.error('[DEBUG] Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        code: error?.code,
+        platform: Platform.OS,
+      });
+      
+      const errorMessage = error?.message || 'Unknown error occurred';
+      Alert.alert(
+        'Download Failed',
+        `Failed to download template:\n\n${errorMessage}\n\nCheck console for details.`,
+        [{ text: 'OK' }]
+      );
     }
   };
 

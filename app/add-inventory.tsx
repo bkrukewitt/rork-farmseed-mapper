@@ -64,7 +64,29 @@ export default function AddInventoryScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const keyboardHeight = useRef(0);
   const inputAccessoryViewID = 'keyboard-accessory-inventory';
+  
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        keyboardHeight.current = e.endCoordinates.height;
+      }
+    );
+    
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeight.current = 0;
+      }
+    );
+    
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (isEditMode && editId) {
@@ -169,12 +191,28 @@ export default function AddInventoryScreen() {
   const scrollToInput = (inputName: string) => {
     const yPosition = inputPositions.current[inputName];
     if (yPosition !== undefined && scrollViewRef.current) {
+      // Calculate scroll position: input position - keyboard height - safe area - input field height - padding
+      // On iOS, we need more space for the header/nav bar and safe area
+      const safeAreaOffset = Platform.OS === 'ios' ? 120 : 80;
+      const inputHeight = 50; // Approximate input field height
+      const padding = 20; // Extra padding above keyboard
+      const scrollY = Math.max(0, yPosition - (keyboardHeight.current + safeAreaOffset + inputHeight + padding));
+      
+      // Initial scroll
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({
-          y: Math.max(0, yPosition - 150),
+          y: scrollY,
           animated: true,
         });
-      }, 150);
+      }, Platform.OS === 'ios' ? 200 : 100);
+      
+      // Second scroll after keyboard animation completes to ensure proper positioning
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: scrollY,
+          animated: true,
+        });
+      }, Platform.OS === 'ios' ? 500 : 300);
     }
   };
 

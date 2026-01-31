@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
@@ -68,6 +71,65 @@ export default function UploadInventoryScreen() {
   const [dropboxUrl, setDropboxUrl] = useState('');
   const [showDropboxInput, setShowDropboxInput] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
+  
+  // Auto-scroll for keyboard
+  const scrollViewRef = useRef<ScrollView>(null);
+  const inputPositions = useRef<{ [key: string]: number }>({});
+  const keyboardHeight = useRef(0);
+  
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        keyboardHeight.current = e.endCoordinates.height;
+      }
+    );
+    
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeight.current = 0;
+      }
+    );
+    
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
+  
+  const scrollToInput = (inputKey: string) => {
+    const yPosition = inputPositions.current[inputKey];
+    if (yPosition !== undefined && scrollViewRef.current) {
+      // Calculate scroll position: input position - keyboard height - safe area - input field height - padding
+      // On iOS, we need more space for the header/nav bar and safe area
+      const safeAreaOffset = Platform.OS === 'ios' ? 120 : 80;
+      const inputHeight = 50; // Approximate input field height
+      const padding = 20; // Extra padding above keyboard
+      const scrollY = Math.max(0, yPosition - (keyboardHeight.current + safeAreaOffset + inputHeight + padding));
+      
+      // Initial scroll
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: scrollY,
+          animated: true,
+        });
+      }, Platform.OS === 'ios' ? 200 : 100);
+      
+      // Second scroll after keyboard animation completes to ensure proper positioning
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: scrollY,
+          animated: true,
+        });
+      }, Platform.OS === 'ios' ? 500 : 300);
+    }
+  };
+  
+  const handleInputLayout = (inputKey: string, event: any) => {
+    const { y } = event.nativeEvent.layout;
+    inputPositions.current[inputKey] = y;
+  };
 
   const pickDocument = async () => {
     try {
@@ -428,14 +490,30 @@ export default function UploadInventoryScreen() {
             });
             console.log('[DEBUG] Sharing result:', result);
             
-            if (result.action === Sharing.SharingResultAction.shared) {
+            // Handle result - it might be null or have different structure on iOS
+            if (result) {
+              if (result.action === Sharing.SharingResultAction.shared) {
+                console.log('[DEBUG] File shared successfully');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              } else if (result.action === Sharing.SharingResultAction.dismissedActionSheet) {
+                console.log('[DEBUG] User dismissed share sheet');
+                // Don't show error - user just cancelled
+              }
+            } else {
+              // Result is null - this can happen on iOS when sharing succeeds
+              // If we got here without an error, sharing likely succeeded
+              console.log('[DEBUG] Sharing completed (result is null, likely successful)');
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } else if (result.action === Sharing.SharingResultAction.dismissedActionSheet) {
-              console.log('[DEBUG] User dismissed share sheet');
             }
           } catch (shareError: any) {
             console.error('[DEBUG] Sharing error:', shareError);
-            throw new Error(`Sharing failed: ${shareError.message || 'Unknown error'}`);
+            // Only throw error if it's a real error, not a cancellation
+            const errorMessage = shareError?.message || 'Unknown error';
+            if (!errorMessage.includes('cancel') && !errorMessage.includes('dismiss')) {
+              throw new Error(`Sharing failed: ${errorMessage}`);
+            } else {
+              console.log('[DEBUG] User cancelled sharing');
+            }
           }
         } else {
           Alert.alert(
@@ -469,15 +547,21 @@ export default function UploadInventoryScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <Stack.Screen options={{ title: 'Import Inventory' }} />
       
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.headerSection}>
           <View style={styles.headerIcon}>
             <FileSpreadsheet size={32} color={Colors.primary} />
@@ -555,7 +639,10 @@ export default function UploadInventoryScreen() {
           </TouchableOpacity>
 
           {showDropboxInput && (
-            <View style={styles.dropboxInputContainer}>
+            <View 
+              style={styles.dropboxInputContainer}
+              onLayout={(e) => handleInputLayout('dropboxInput', e)}
+            >
               <View style={styles.dropboxInputRow}>
                 <LinkIcon size={20} color={Colors.textLight} />
                 <TextInput
@@ -566,6 +653,10 @@ export default function UploadInventoryScreen() {
                   onChangeText={setDropboxUrl}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  onFocus={() => {
+                    // Small delay to ensure layout is measured
+                    setTimeout(() => scrollToInput('dropboxInput'), Platform.OS === 'ios' ? 200 : 100);
+                  }}
                 />
               </View>
               <TouchableOpacity
@@ -670,8 +761,9 @@ export default function UploadInventoryScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 

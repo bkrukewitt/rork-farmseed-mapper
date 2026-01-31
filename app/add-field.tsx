@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Keyboard,
   InputAccessoryView,
   KeyboardAvoidingView,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as Location from 'expo-location';
@@ -72,44 +71,9 @@ export default function AddFieldScreen() {
   });
 
   const inputAccessoryViewID = 'keyboard-accessory-field';
-  const scrollViewRef = useRef<ScrollView>(null);
-  const inputPositions = useRef<{ [key: string]: number }>({});
-  const keyboardHeight = useRef<number>(300);
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
-      keyboardHeight.current = e.endCoordinates.height;
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      keyboardHeight.current = 300;
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
 
   const dismissKeyboard = () => {
     Keyboard.dismiss();
-  };
-
-  const scrollToInput = (inputName: string) => {
-    const yPosition = inputPositions.current[inputName];
-    if (yPosition !== undefined && scrollViewRef.current) {
-      setTimeout(() => {
-        // Scroll to show input above keyboard with some padding
-        const offset = keyboardHeight.current + 100; // keyboard height + padding
-        scrollViewRef.current?.scrollTo({
-          y: Math.max(0, yPosition - offset),
-          animated: true,
-        });
-      }, 100);
-    }
-  };
-
-  const handleInputLayout = (inputName: string, y: number) => {
-    inputPositions.current[inputName] = y;
   };
 
   useEffect(() => {
@@ -187,16 +151,9 @@ export default function AddFieldScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <Stack.Screen options={{ title: 'Add Field' }} />
-      <TouchableWithoutFeedback onPress={dismissKeyboard}>
-        <ScrollView 
-          ref={scrollViewRef}
-          style={styles.scrollView} 
-          contentContainerStyle={styles.content} 
-          keyboardShouldPersistTaps="handled"
-        >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Field Location</Text>
           <Text style={styles.sectionSubtitle}>Tap on the map to set the field location</Text>
@@ -252,10 +209,7 @@ export default function AddFieldScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Field Details</Text>
           
-          <View 
-            style={styles.inputGroup}
-            onLayout={(e) => handleInputLayout('name', e.nativeEvent.layout.y)}
-          >
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Field Name *</Text>
             <TextInput
               style={styles.input}
@@ -265,14 +219,10 @@ export default function AddFieldScreen() {
               placeholderTextColor={Colors.textLight}
               testID="field-name-input"
               inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
-              onFocus={() => scrollToInput('name')}
             />
           </View>
 
-          <View 
-            style={styles.inputGroup}
-            onLayout={(e) => handleInputLayout('acreage', e.nativeEvent.layout.y)}
-          >
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Acreage</Text>
             <TextInput
               style={styles.input}
@@ -283,7 +233,6 @@ export default function AddFieldScreen() {
               keyboardType="decimal-pad"
               testID="field-acreage-input"
               inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
-              onFocus={() => scrollToInput('acreage')}
             />
           </View>
 
@@ -331,10 +280,7 @@ export default function AddFieldScreen() {
             </View>
           </View>
 
-          <View 
-            style={styles.inputGroup}
-            onLayout={(e) => handleInputLayout('notes', e.nativeEvent.layout.y)}
-          >
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Notes</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
@@ -347,7 +293,6 @@ export default function AddFieldScreen() {
               textAlignVertical="top"
               testID="field-notes-input"
               inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
-              onFocus={() => scrollToInput('notes')}
             />
           </View>
         </View>
@@ -361,8 +306,7 @@ export default function AddFieldScreen() {
           <Check size={20} color={Colors.textInverse} />
           <Text style={styles.saveButtonText}>Save Field</Text>
         </TouchableOpacity>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+      </ScrollView>
 
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={inputAccessoryViewID}>

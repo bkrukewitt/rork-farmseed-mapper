@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,11 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
-  KeyboardAvoidingView,
-  Keyboard,
-  InputAccessoryView,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
 import {
@@ -29,7 +26,6 @@ import {
   Cloud,
   Link as LinkIcon,
   FileDown,
-  ChevronDown,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
@@ -72,47 +68,6 @@ export default function UploadInventoryScreen() {
   const [dropboxUrl, setDropboxUrl] = useState('');
   const [showDropboxInput, setShowDropboxInput] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
-  
-  const inputAccessoryViewID = 'keyboard-accessory-upload-inventory';
-  const scrollViewRef = useRef<ScrollView>(null);
-  const inputPositions = useRef<{ [key: string]: number }>({});
-  const keyboardHeight = useRef<number>(300);
-  
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
-      keyboardHeight.current = e.endCoordinates.height;
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      keyboardHeight.current = 300;
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
-
-  const dismissKeyboard = () => {
-    Keyboard.dismiss();
-  };
-
-  const scrollToInput = (inputName: string) => {
-    const yPosition = inputPositions.current[inputName];
-    if (yPosition !== undefined && scrollViewRef.current) {
-      setTimeout(() => {
-        // Scroll to show input above keyboard with some padding
-        const offset = keyboardHeight.current + 100; // keyboard height + padding
-        scrollViewRef.current?.scrollTo({
-          y: Math.max(0, yPosition - offset),
-          animated: true,
-        });
-      }, 100);
-    }
-  };
-
-  const handleInputLayout = (inputName: string, y: number) => {
-    inputPositions.current[inputName] = y;
-  };
 
   const pickDocument = async () => {
     try {
@@ -419,28 +374,45 @@ export default function UploadInventoryScreen() {
         URL.revokeObjectURL(url);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        // Use documentDirectory for better reliability on iOS
-        const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-        if (!directory) {
-          throw new Error('No file system directory available');
-        }
-        
+        // Use File API which is more reliable on iOS
         const fileName = 'inventory_template.csv';
-        const fileUri = directory + fileName;
+        let file: File;
+        let fileUri: string;
         
-        console.log('[DEBUG] Download template - Writing file to:', fileUri);
-        
-        // Write the file
-        await FileSystem.writeAsStringAsync(fileUri, INVENTORY_TEMPLATE_CSV, {
-          encoding: FileSystem.EncodingType.UTF8 as any,
-        });
-        
-        // Verify file exists
-        const fileInfo = await FileSystem.getInfoAsync(fileUri);
-        console.log('[DEBUG] File created:', fileInfo.exists, fileInfo);
-        
-        if (!fileInfo.exists) {
-          throw new Error('File was not created successfully');
+        try {
+          // Try using Paths.cache first (more reliable)
+          console.log('[DEBUG] Attempting to use File API with Paths.cache');
+          file = new File(Paths.cache, fileName);
+          file.create({ overwrite: true });
+          file.write(INVENTORY_TEMPLATE_CSV);
+          fileUri = file.uri;
+          console.log('[DEBUG] File created using Paths.cache:', fileUri);
+        } catch (fileError: any) {
+          console.log('[DEBUG] File API with Paths.cache failed:', fileError.message);
+          
+          // Fallback: Try using FileSystem API directly
+          try {
+            const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+            if (!directory) {
+              throw new Error('No file system directory available');
+            }
+            
+            fileUri = directory + fileName;
+            console.log('[DEBUG] Fallback: Using FileSystem API, directory:', directory);
+            
+            await FileSystem.writeAsStringAsync(fileUri, INVENTORY_TEMPLATE_CSV, {
+              encoding: FileSystem.EncodingType.UTF8 as any,
+            });
+            
+            const fileInfo = await FileSystem.getInfoAsync(fileUri);
+            if (!fileInfo.exists) {
+              throw new Error('File was not created successfully');
+            }
+            console.log('[DEBUG] File created using FileSystem API:', fileUri);
+          } catch (fsError: any) {
+            console.error('[DEBUG] Both File API and FileSystem API failed:', fsError);
+            throw new Error(`Unable to create file: ${fsError.message || 'Unknown error'}`);
+          }
         }
         
         // Check if sharing is available
@@ -459,7 +431,6 @@ export default function UploadInventoryScreen() {
             if (result.action === Sharing.SharingResultAction.shared) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } else if (result.action === Sharing.SharingResultAction.dismissedActionSheet) {
-              // User dismissed the share sheet - not an error
               console.log('[DEBUG] User dismissed share sheet');
             }
           } catch (shareError: any) {
@@ -467,7 +438,6 @@ export default function UploadInventoryScreen() {
             throw new Error(`Sharing failed: ${shareError.message || 'Unknown error'}`);
           }
         } else {
-          // Fallback: Show alert with file location info
           Alert.alert(
             'Template Saved',
             `Template saved to app documents.\n\nFile: ${fileName}\n\nYou can access it through the Files app.`,
@@ -483,6 +453,8 @@ export default function UploadInventoryScreen() {
         stack: error?.stack,
         code: error?.code,
         platform: Platform.OS,
+        documentDir: FileSystem.documentDirectory,
+        cacheDir: FileSystem.cacheDirectory,
       });
       
       const errorMessage = error?.message || 'Unknown error occurred';
@@ -497,21 +469,15 @@ export default function UploadInventoryScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={styles.container}>
       <Stack.Screen options={{ title: 'Import Inventory' }} />
       
-      <TouchableWithoutFeedback onPress={dismissKeyboard}>
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerSection}>
           <View style={styles.headerIcon}>
             <FileSpreadsheet size={32} color={Colors.primary} />
@@ -589,10 +555,7 @@ export default function UploadInventoryScreen() {
           </TouchableOpacity>
 
           {showDropboxInput && (
-            <View 
-              style={styles.dropboxInputContainer}
-              onLayout={(e) => handleInputLayout('dropboxUrl', e.nativeEvent.layout.y)}
-            >
+            <View style={styles.dropboxInputContainer}>
               <View style={styles.dropboxInputRow}>
                 <LinkIcon size={20} color={Colors.textLight} />
                 <TextInput
@@ -603,8 +566,6 @@ export default function UploadInventoryScreen() {
                   onChangeText={setDropboxUrl}
                   autoCapitalize="none"
                   autoCorrect={false}
-                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
-                  onFocus={() => scrollToInput('dropboxUrl')}
                 />
               </View>
               <TouchableOpacity
@@ -709,20 +670,8 @@ export default function UploadInventoryScreen() {
             )}
           </TouchableOpacity>
         </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-      
-      {Platform.OS === 'ios' && (
-        <InputAccessoryView nativeID={inputAccessoryViewID}>
-          <View style={styles.keyboardAccessory}>
-            <TouchableOpacity style={styles.dismissKeyboardButton} onPress={dismissKeyboard}>
-              <ChevronDown size={20} color={Colors.primary} />
-              <Text style={styles.dismissKeyboardText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </InputAccessoryView>
-      )}
-    </KeyboardAvoidingView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -1045,28 +994,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: Colors.textInverse,
-  },
-  keyboardAccessory: {
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  dismissKeyboardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: Colors.primary + '15',
-    borderRadius: 8,
-    gap: 4,
-  },
-  dismissKeyboardText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.primary,
   },
 });

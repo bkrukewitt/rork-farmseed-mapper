@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Keyboard,
   InputAccessoryView,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Image } from 'expo-image';
@@ -70,22 +69,7 @@ export default function AddEntryScreen() {
   
   const scrollViewRef = useRef<ScrollView>(null);
   const inputPositions = useRef<{ [key: string]: number }>({});
-  const keyboardHeight = useRef<number>(300);
   const inputAccessoryViewID = 'keyboard-accessory-entry';
-
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
-      keyboardHeight.current = e.endCoordinates.height;
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      keyboardHeight.current = 300;
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
 
   useEffect(() => {
     if (existingEntry) {
@@ -221,13 +205,11 @@ export default function AddEntryScreen() {
     const yPosition = inputPositions.current[inputName];
     if (yPosition !== undefined && scrollViewRef.current) {
       setTimeout(() => {
-        // Scroll to show input above keyboard with some padding
-        const offset = keyboardHeight.current + 100; // keyboard height + padding
         scrollViewRef.current?.scrollTo({
-          y: Math.max(0, yPosition - offset),
+          y: Math.max(0, yPosition - 150),
           animated: true,
         });
-      }, 100);
+      }, 150);
     }
   };
 
@@ -324,17 +306,15 @@ export default function AddEntryScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <Stack.Screen options={{ title: isEditMode ? 'Edit Entry' : 'Add Entry' }} />
-      <TouchableWithoutFeedback onPress={dismissKeyboard}>
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollView}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.locationSection}>
           <View style={styles.locationHeader}>
             <MapPin size={20} color={Colors.primary} />
@@ -796,8 +776,7 @@ export default function AddEntryScreen() {
             )}
           </TouchableOpacity>
         </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+      </ScrollView>
 
       {Platform.OS === 'ios' && (
         <InputAccessoryView nativeID={inputAccessoryViewID}>

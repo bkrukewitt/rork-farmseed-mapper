@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,9 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  KeyboardAvoidingView,
-  Keyboard,
-  InputAccessoryView,
-  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { Trash2, Check, Layers, MapPin, Ruler, Wheat, Calendar, ChevronDown } from 'lucide-react-native';
+import { Trash2, Check, Layers, MapPin, Ruler, Wheat, Calendar } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 
@@ -62,47 +58,6 @@ export default function FieldDetailScreen() {
   const [notes, setNotes] = useState(field?.notes || '');
   const [color, setColor] = useState(field?.color || FIELD_COLORS[0]);
   const [isEditing, setIsEditing] = useState(false);
-  
-  const inputAccessoryViewID = 'keyboard-accessory-field-detail';
-  const scrollViewRef = useRef<ScrollView>(null);
-  const inputPositions = useRef<{ [key: string]: number }>({});
-  const keyboardHeight = useRef<number>(300);
-  
-  useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', (e) => {
-      keyboardHeight.current = e.endCoordinates.height;
-    });
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      keyboardHeight.current = 300;
-    });
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
-
-  const dismissKeyboard = () => {
-    Keyboard.dismiss();
-  };
-
-  const scrollToInput = (inputName: string) => {
-    const yPosition = inputPositions.current[inputName];
-    if (yPosition !== undefined && scrollViewRef.current) {
-      setTimeout(() => {
-        // Scroll to show input above keyboard with some padding
-        const offset = keyboardHeight.current + 100; // keyboard height + padding
-        scrollViewRef.current?.scrollTo({
-          y: Math.max(0, yPosition - offset),
-          animated: true,
-        });
-      }, 100);
-    }
-  };
-
-  const handleInputLayout = (inputName: string, y: number) => {
-    inputPositions.current[inputName] = y;
-  };
 
   useEffect(() => {
     if (field) {
@@ -186,18 +141,7 @@ export default function FieldDetailScreen() {
           ),
         }}
       />
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
-        <TouchableWithoutFeedback onPress={dismissKeyboard}>
-          <ScrollView 
-            ref={scrollViewRef}
-            style={styles.scrollView} 
-            contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled"
-          >
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.mapSection}>
           {Platform.OS === 'web' ? (
             <View style={styles.webMapPlaceholder}>
@@ -265,10 +209,7 @@ export default function FieldDetailScreen() {
 
           {isEditing ? (
             <>
-              <View 
-                style={styles.inputGroup}
-                onLayout={(e) => handleInputLayout('name', e.nativeEvent.layout.y)}
-              >
+              <View style={styles.inputGroup}>
                 <Text style={styles.label}>Field Name</Text>
                 <TextInput
                   style={styles.input}
@@ -276,15 +217,10 @@ export default function FieldDetailScreen() {
                   onChangeText={setName}
                   placeholder="Field name"
                   placeholderTextColor={Colors.textLight}
-                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
-                  onFocus={() => scrollToInput('name')}
                 />
               </View>
 
-              <View 
-                style={styles.inputGroup}
-                onLayout={(e) => handleInputLayout('acreage', e.nativeEvent.layout.y)}
-              >
+              <View style={styles.inputGroup}>
                 <Text style={styles.label}>Acreage</Text>
                 <TextInput
                   style={styles.input}
@@ -293,8 +229,6 @@ export default function FieldDetailScreen() {
                   placeholder="e.g., 80"
                   placeholderTextColor={Colors.textLight}
                   keyboardType="decimal-pad"
-                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
-                  onFocus={() => scrollToInput('acreage')}
                 />
               </View>
 
@@ -342,10 +276,7 @@ export default function FieldDetailScreen() {
                 </View>
               </View>
 
-              <View 
-                style={styles.inputGroup}
-                onLayout={(e) => handleInputLayout('notes', e.nativeEvent.layout.y)}
-              >
+              <View style={styles.inputGroup}>
                 <Text style={styles.label}>Notes</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
@@ -356,8 +287,6 @@ export default function FieldDetailScreen() {
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
-                  inputAccessoryViewID={Platform.OS === 'ios' ? inputAccessoryViewID : undefined}
-                  onFocus={() => scrollToInput('notes')}
                 />
               </View>
 
@@ -421,20 +350,7 @@ export default function FieldDetailScreen() {
             ))}
           </View>
         )}
-          </ScrollView>
-        </TouchableWithoutFeedback>
-        
-        {Platform.OS === 'ios' && (
-          <InputAccessoryView nativeID={inputAccessoryViewID}>
-            <View style={styles.keyboardAccessory}>
-              <TouchableOpacity style={styles.dismissKeyboardButton} onPress={dismissKeyboard}>
-                <ChevronDown size={20} color={Colors.primary} />
-                <Text style={styles.dismissKeyboardText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </InputAccessoryView>
-        )}
-      </KeyboardAvoidingView>
+      </ScrollView>
     </>
   );
 }
@@ -443,9 +359,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  scrollView: {
-    flex: 1,
   },
   content: {
     paddingBottom: 40,
@@ -686,28 +599,5 @@ const styles = StyleSheet.create({
   entryDate: {
     fontSize: 13,
     color: Colors.textLight,
-  },
-  keyboardAccessory: {
-    backgroundColor: Colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  dismissKeyboardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: Colors.primary + '15',
-    borderRadius: 8,
-    gap: 4,
-  },
-  dismissKeyboardText: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.primary,
   },
 });

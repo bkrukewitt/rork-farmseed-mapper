@@ -1,4 +1,4 @@
-import React, { useState, ReactNode } from 'react';
+import React, { useState, ReactNode, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { File, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
 import {
@@ -22,15 +23,233 @@ import {
   Leaf,
   FileSpreadsheet,
   HelpCircle,
+  AlertTriangle,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { useRouter } from 'expo-router';
 
+interface ErrorLogEntry {
+  timestamp: string;
+  message: string;
+  stack?: string;
+  source?: string;
+}
+
+const ERROR_LOG_KEY = 'farmseed_error_log';
+const MAX_LOG_ENTRIES = 1000; // Keep last 1000 errors
+
 export default function SettingsScreen() {
   const { entries, fields } = useData();
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingErrorLog, setIsExportingErrorLog] = useState(false);
+  const [errorLogCount, setErrorLogCount] = useState(0);
   const router = useRouter();
+  const originalConsoleError = useRef(console.error);
+
+  // Initialize error logging
+  useEffect(() => {
+    // Load error log count
+    loadErrorLogCount();
+    
+    // Override console.error to capture errors
+    console.error = (...args: any[]) => {
+      // Call original console.error
+      originalConsoleError.current(...args);
+      
+      // Log to our error storage
+      const errorMessage = args.map(arg => {
+        if (typeof arg === 'object') {
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch {
+            return String(arg);
+          }
+        }
+        return String(arg);
+      }).join(' ');
+      
+      logError(errorMessage, new Error().stack);
+    };
+
+    // Capture unhandled promise rejections
+    const unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
+      const errorMessage = event.reason?.message || String(event.reason) || 'Unhandled promise rejection';
+      logError(errorMessage, event.reason?.stack);
+    };
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.addEventListener('unhandledrejection', unhandledRejectionHandler);
+    }
+
+    return () => {
+      console.error = originalConsoleError.current;
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.removeEventListener('unhandledrejection', unhandledRejectionHandler);
+      }
+    };
+  }, []);
+
+  const loadErrorLogCount = async () => {
+    try {
+      const logData = await AsyncStorage.getItem(ERROR_LOG_KEY);
+      if (logData) {
+        const logs: ErrorLogEntry[] = JSON.parse(logData);
+        setErrorLogCount(logs.length);
+      }
+    } catch (error) {
+      console.error('Error loading error log count:', error);
+    }
+  };
+
+  const logError = async (message: string, stack?: string) => {
+    try {
+      const logData = await AsyncStorage.getItem(ERROR_LOG_KEY);
+      let logs: ErrorLogEntry[] = logData ? JSON.parse(logData) : [];
+      
+      const newEntry: ErrorLogEntry = {
+        timestamp: new Date().toISOString(),
+        message,
+        stack,
+        source: 'console.error',
+      };
+      
+      logs.push(newEntry);
+      
+      // Keep only the last MAX_LOG_ENTRIES
+      if (logs.length > MAX_LOG_ENTRIES) {
+        logs = logs.slice(-MAX_LOG_ENTRIES);
+      }
+      
+      await AsyncStorage.setItem(ERROR_LOG_KEY, JSON.stringify(logs));
+      setErrorLogCount(logs.length);
+    } catch (error) {
+      // Silently fail to avoid infinite loop
+      originalConsoleError.current('Error logging failed:', error);
+    }
+  };
+
+  const handleExportErrorLog = async () => {
+    setIsExportingErrorLog(true);
+    try {
+      const logData = await AsyncStorage.getItem(ERROR_LOG_KEY);
+      const logs: ErrorLogEntry[] = logData ? JSON.parse(logData) : [];
+      
+      if (logs.length === 0) {
+        Alert.alert('No Errors', 'No error logs found to export.');
+        return;
+      }
+
+      // Format error log as text
+      let errorLogText = `FarmSeed Mapper - Error Log\n`;
+      errorLogText += `Generated: ${new Date().toLocaleString()}\n`;
+      errorLogText += `Total Errors: ${logs.length}\n`;
+      errorLogText += `Platform: ${Platform.OS}\n`;
+      errorLogText += `${'='.repeat(60)}\n\n`;
+
+      logs.forEach((entry, index) => {
+        errorLogText += `[${index + 1}] ${entry.timestamp}\n`;
+        errorLogText += `Source: ${entry.source || 'Unknown'}\n`;
+        errorLogText += `Message: ${entry.message}\n`;
+        if (entry.stack) {
+          errorLogText += `Stack:\n${entry.stack}\n`;
+        }
+        errorLogText += `${'-'.repeat(60)}\n\n`;
+      });
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([errorLogText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `error_log_${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        Alert.alert('Success', 'Error log downloaded successfully');
+      } else {
+        const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+        if (!directory) {
+          throw new Error('No file system directory available');
+        }
+        
+        const fileName = `error_log_${new Date().toISOString().split('T')[0]}.txt`;
+        const fileUri = directory + fileName;
+        
+        console.log('[DEBUG] Export error log - Writing file to:', fileUri);
+        
+        await FileSystem.writeAsStringAsync(fileUri, errorLogText, {
+          encoding: FileSystem.EncodingType.UTF8 as any,
+        });
+        
+        const fileInfo = await FileSystem.getInfoAsync(fileUri);
+        console.log('[DEBUG] Error log file created:', fileInfo.exists);
+        
+        if (!fileInfo.exists) {
+          throw new Error('Error log file was not created successfully');
+        }
+        
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          try {
+            const result = await Sharing.shareAsync(fileUri, {
+              mimeType: 'text/plain',
+              dialogTitle: 'Export Error Log',
+              UTI: 'public.plain-text',
+            });
+            console.log('[DEBUG] Error log sharing result:', result);
+            
+            if (result.action === Sharing.SharingResultAction.shared) {
+              Alert.alert('Success', 'Error log exported successfully');
+            }
+          } catch (shareError: any) {
+            console.error('[DEBUG] Error log sharing error:', shareError);
+            throw new Error(`Sharing failed: ${shareError.message || 'Unknown error'}`);
+          }
+        } else {
+          Alert.alert(
+            'Error Log Saved',
+            `Error log saved to app documents.\n\nFile: ${fileName}\n\nYou can access it through the Files app.`,
+            [{ text: 'OK' }]
+          );
+        }
+      }
+    } catch (error: any) {
+      console.error('[DEBUG] Export error log error:', error);
+      Alert.alert(
+        'Export Failed',
+        `Failed to export error log:\n\n${error?.message || 'Unknown error'}\n\nCheck console for details.`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsExportingErrorLog(false);
+    }
+  };
+
+  const handleClearErrorLog = () => {
+    Alert.alert(
+      'Clear Error Log',
+      `This will permanently delete all ${errorLogCount} error log entries. This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem(ERROR_LOG_KEY);
+              setErrorLogCount(0);
+              Alert.alert('Success', 'Error log cleared');
+            } catch (error) {
+              console.error('Clear error log error:', error);
+              Alert.alert('Error', 'Failed to clear error log');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleViewOnboarding = () => {
     router.push('/onboarding');
@@ -199,6 +418,7 @@ export default function SettingsScreen() {
     onPress,
     destructive = false,
     value,
+    isLoading,
   }: {
     icon: ReactNode;
     title: string;
@@ -206,11 +426,12 @@ export default function SettingsScreen() {
     onPress?: () => void;
     destructive?: boolean;
     value?: string;
+    isLoading?: boolean;
   }) => (
     <TouchableOpacity
       style={styles.settingRow}
       onPress={onPress}
-      disabled={!onPress}
+      disabled={!onPress || isLoading}
       activeOpacity={onPress ? 0.7 : 1}
     >
       <View style={[styles.settingIcon, destructive && styles.destructiveIcon]}>
@@ -222,8 +443,12 @@ export default function SettingsScreen() {
         </Text>
         {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
       </View>
-      {value && <Text style={styles.settingValue}>{value}</Text>}
-      {onPress && <ChevronRight size={18} color={Colors.textLight} />}
+      {isLoading ? (
+        <ActivityIndicator size="small" color={Colors.primary} style={{ marginRight: 8 }} />
+      ) : value ? (
+        <Text style={styles.settingValue}>{value}</Text>
+      ) : null}
+      {onPress && !isLoading && <ChevronRight size={18} color={Colors.textLight} />}
     </TouchableOpacity>
   );
 
@@ -305,6 +530,28 @@ export default function SettingsScreen() {
             title="Privacy Policy"
             subtitle="Your data stays on your device"
           />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Debugging</Text>
+        <View style={styles.sectionContent}>
+          <SettingRow
+            icon={<AlertTriangle size={20} color={Colors.warning} />}
+            title="Export Error Log"
+            subtitle={errorLogCount > 0 ? `${errorLogCount} error${errorLogCount !== 1 ? 's' : ''} logged` : 'No errors logged'}
+            onPress={handleExportErrorLog}
+            isLoading={isExportingErrorLog}
+          />
+          {errorLogCount > 0 && (
+            <SettingRow
+              icon={<Trash2 size={20} color={Colors.error} />}
+              title="Clear Error Log"
+              subtitle={`Remove all ${errorLogCount} error entries`}
+              onPress={handleClearErrorLog}
+              destructive
+            />
+          )}
         </View>
       </View>
 

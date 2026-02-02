@@ -66,13 +66,18 @@ export const [DataProvider, useData] = createContextHook(() => {
     }
   };
 
-  const addEntry = useCallback((entry: Omit<SeedEntry, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const now = new Date().toISOString();
+  const addEntry = useCallback((entry: Omit<SeedEntry, 'id' | 'createdAt' | 'updatedAt' | 'entryDate' | 'entryTime'>) => {
+    const now = new Date();
+    const nowISO = now.toISOString();
+    const entryDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
+    const entryTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
     const newEntry: SeedEntry = {
       ...entry,
       id: generateId(),
-      createdAt: now,
-      updatedAt: now,
+      entryDate,
+      entryTime,
+      createdAt: nowISO,
+      updatedAt: nowISO,
     };
     const newEntries = [...entries, newEntry];
     saveEntries(newEntries);

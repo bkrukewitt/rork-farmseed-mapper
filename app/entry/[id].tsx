@@ -161,6 +161,15 @@ export default function EntryDetailScreen() {
               label="Planting Date"
               value={entry.plantingDate ? formatDate(entry.plantingDate) : 'Not specified'}
             />
+            {entry.entryDate && (
+              <DetailRow
+                icon={<Calendar size={18} color={Colors.textSecondary} />}
+                label="Entry Date & Time"
+                value={entry.entryDate && entry.entryTime 
+                  ? `${entry.entryDate} at ${entry.entryTime}` 
+                  : entry.entryDate || 'Not specified'}
+              />
+            )}
           </View>
         </View>
 

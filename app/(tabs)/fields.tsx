@@ -12,8 +12,6 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import {
   Layers,
@@ -66,37 +64,12 @@ export default function FieldsScreen() {
     setShowActionModal(false);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      if (Platform.OS === 'web') {
-        const blob = new Blob([FIELD_CSV_TEMPLATE], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'fields_template.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        Alert.alert('Success', 'Template downloaded successfully');
-      } else {
-        const file = new File(Paths.document, 'fields_template.csv');
-        file.create({ overwrite: true });
-        file.write(FIELD_CSV_TEMPLATE);
-        
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(file.uri, {
-            mimeType: 'text/csv',
-            dialogTitle: 'Download Fields Template',
-          });
-        } else {
-          Alert.alert('Template Ready', 'Template saved to app documents');
-        }
-      }
+      const { downloadTemplate } = await import('@/utils/templateDownload');
+      await downloadTemplate(FIELD_CSV_TEMPLATE, 'fields_template.csv', 'text/csv');
       console.log('Fields template downloaded');
     } catch (error) {
       console.error('Download template error:', error);
-      Alert.alert('Error', 'Failed to download template');
+      // Error already handled in downloadTemplate utility
     }
   };
 

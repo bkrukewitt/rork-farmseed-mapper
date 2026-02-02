@@ -18,6 +18,8 @@ export interface SeedEntry {
   notes: string;
   fieldName: string;
   mapLabel: string;
+  entryDate?: string; // Date when entry was created (YYYY-MM-DD) - optional for backward compatibility
+  entryTime?: string; // Time when entry was created (HH:MM:SS) - optional for backward compatibility
   createdAt: string;
   updatedAt: string;
 }

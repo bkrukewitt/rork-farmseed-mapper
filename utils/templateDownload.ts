@@ -1,5 +1,6 @@
 import { Platform, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
 
@@ -29,18 +30,27 @@ export async function downloadTemplate(
       return;
     }
 
-    // Mobile platforms - use file system
-    const directory = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-    if (!directory) {
-      throw new Error('No file system directory available');
+    // Mobile platforms - use File API which is more reliable on iOS
+    let fileUri: string;
+    
+    try {
+      // Try using File API with Paths.cache (most reliable on iOS)
+      const file = new File(Paths.cache, fileName);
+      file.create({ overwrite: true });
+      file.write(templateContent);
+      fileUri = file.uri;
+    } catch (fileError: any) {
+      // Fallback: Try using FileSystem API directly
+      const directory = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+      if (!directory) {
+        throw new Error('No file system directory available. Please ensure the app has proper permissions.');
+      }
+      
+      fileUri = `${directory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, templateContent, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
     }
-
-    const fileUri = `${directory}${fileName}`;
-
-    // Write file using expo-file-system
-    await FileSystem.writeAsStringAsync(fileUri, templateContent, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
 
     // Verify file was created
     const fileInfo = await FileSystem.getInfoAsync(fileUri);

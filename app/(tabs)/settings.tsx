@@ -236,7 +236,6 @@ export default function SettingsScreen() {
           <Leaf size={40} color={Colors.primary} />
         </View>
         <Text style={styles.appName}>FarmSeed Mapper</Text>
-        <Text style={styles.version}>Version 1.0.0</Text>
       </View>
 
       <View style={styles.statsCard}>
@@ -345,10 +344,6 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.text,
     marginBottom: 4,
-  },
-  version: {
-    fontSize: 14,
-    color: Colors.textSecondary,
   },
   statsCard: {
     flexDirection: 'row',

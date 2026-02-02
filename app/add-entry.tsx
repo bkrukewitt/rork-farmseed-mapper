@@ -311,6 +311,7 @@ export default function AddEntryScreen() {
         notes,
         traits: selectedTraits.length > 0 ? selectedTraits : (selectedInventoryItem?.traits || []),
         treatments: selectedTreatments.length > 0 ? selectedTreatments : (selectedInventoryItem?.treatments || []),
+        // entryDate and entryTime will be set automatically by DataContext
       };
 
       let entryId: string;

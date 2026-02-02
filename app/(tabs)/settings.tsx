@@ -92,6 +92,8 @@ export default function SettingsScreen() {
         'Latitude': entry.coordinates?.latitude || '',
         'Longitude': entry.coordinates?.longitude || '',
         'Notes': entry.notes || '',
+        'Entry Date': entry.entryDate || (entry.createdAt ? new Date(entry.createdAt).toISOString().split('T')[0] : ''),
+        'Entry Time': entry.entryTime || (entry.createdAt ? new Date(entry.createdAt).toTimeString().split(' ')[0] : ''),
         'Created': entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '',
         'Updated': entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString() : '',
       }));

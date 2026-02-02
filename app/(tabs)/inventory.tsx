@@ -14,8 +14,6 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import {
   Package,
@@ -96,37 +94,12 @@ export default function InventoryScreen() {
     setShowActionModal(false);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      if (Platform.OS === 'web') {
-        const blob = new Blob([INVENTORY_CSV_TEMPLATE], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'inventory_template.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        Alert.alert('Success', 'Template downloaded successfully');
-      } else {
-        const file = new File(Paths.document, 'inventory_template.csv');
-        file.create({ overwrite: true });
-        file.write(INVENTORY_CSV_TEMPLATE);
-        
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
-          await Sharing.shareAsync(file.uri, {
-            mimeType: 'text/csv',
-            dialogTitle: 'Download Inventory Template',
-          });
-        } else {
-          Alert.alert('Template Ready', 'Template saved to app documents');
-        }
-      }
+      const { downloadTemplate } = await import('@/utils/templateDownload');
+      await downloadTemplate(INVENTORY_CSV_TEMPLATE, 'inventory_template.csv', 'text/csv');
       console.log('Inventory template downloaded');
     } catch (error) {
       console.error('Download template error:', error);
-      Alert.alert('Error', 'Failed to download template');
+      // Error already handled in downloadTemplate utility
     }
   };
 

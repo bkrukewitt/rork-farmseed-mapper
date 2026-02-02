@@ -16,7 +16,6 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { File, Paths } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import {
   FileSpreadsheet,
@@ -29,7 +28,6 @@ import {
   Link as LinkIcon,
   FileDown,
 } from 'lucide-react-native';
-import * as Sharing from 'expo-sharing';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 
@@ -397,123 +395,11 @@ export default function UploadFieldsScreen() {
   const downloadTemplate = async () => {
     setIsDownloadingTemplate(true);
     try {
-      if (Platform.OS === 'web') {
-        const blob = new Blob([FIELDS_TEMPLATE_CSV], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'fields_template.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        // Use File API which is more reliable on iOS
-        const fileName = 'fields_template.csv';
-        let file: File;
-        let fileUri: string;
-        
-        try {
-          // Try using Paths.cache first (more reliable)
-          console.log('[DEBUG] Attempting to use File API with Paths.cache');
-          file = new File(Paths.cache, fileName);
-          file.create({ overwrite: true });
-          file.write(FIELDS_TEMPLATE_CSV);
-          fileUri = file.uri;
-          console.log('[DEBUG] File created using Paths.cache:', fileUri);
-        } catch (fileError: any) {
-          console.log('[DEBUG] File API with Paths.cache failed:', fileError.message);
-          
-          // Fallback: Try using FileSystem API directly
-          try {
-            const directory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
-            if (!directory) {
-              throw new Error('No file system directory available');
-            }
-            
-            fileUri = directory + fileName;
-            console.log('[DEBUG] Fallback: Using FileSystem API, directory:', directory);
-            
-            await FileSystem.writeAsStringAsync(fileUri, FIELDS_TEMPLATE_CSV, {
-              encoding: FileSystem.EncodingType.UTF8 as any,
-            });
-            
-            const fileInfo = await FileSystem.getInfoAsync(fileUri);
-            if (!fileInfo.exists) {
-              throw new Error('File was not created successfully');
-            }
-            console.log('[DEBUG] File created using FileSystem API:', fileUri);
-          } catch (fsError: any) {
-            console.error('[DEBUG] Both File API and FileSystem API failed:', fsError);
-            throw new Error(`Unable to create file: ${fsError.message || 'Unknown error'}`);
-          }
-        }
-        
-        // Check if sharing is available
-        const canShare = await Sharing.isAvailableAsync();
-        console.log('[DEBUG] Sharing available:', canShare);
-        
-        if (canShare) {
-          try {
-            const result = await Sharing.shareAsync(fileUri, {
-              mimeType: 'text/csv',
-              dialogTitle: 'Save Fields Template',
-              UTI: 'public.comma-separated-values-text',
-            });
-            console.log('[DEBUG] Sharing result:', result);
-            
-            // Handle result - it might be null or have different structure on iOS
-            if (result) {
-              if (result.action === Sharing.SharingResultAction.shared) {
-                console.log('[DEBUG] File shared successfully');
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              } else if (result.action === Sharing.SharingResultAction.dismissedActionSheet) {
-                console.log('[DEBUG] User dismissed share sheet');
-                // Don't show error - user just cancelled
-              }
-            } else {
-              // Result is null - this can happen on iOS when sharing succeeds
-              // If we got here without an error, sharing likely succeeded
-              console.log('[DEBUG] Sharing completed (result is null, likely successful)');
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            }
-          } catch (shareError: any) {
-            console.error('[DEBUG] Sharing error:', shareError);
-            // Only throw error if it's a real error, not a cancellation
-            const errorMessage = shareError?.message || 'Unknown error';
-            if (!errorMessage.includes('cancel') && !errorMessage.includes('dismiss')) {
-              throw new Error(`Sharing failed: ${errorMessage}`);
-            } else {
-              console.log('[DEBUG] User cancelled sharing');
-            }
-          }
-        } else {
-          Alert.alert(
-            'Template Saved',
-            `Template saved to app documents.\n\nFile: ${fileName}\n\nYou can access it through the Files app.`,
-            [{ text: 'OK' }]
-          );
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      }
-    } catch (error: any) {
-      console.error('[DEBUG] Download template error:', error);
-      console.error('[DEBUG] Error details:', {
-        message: error?.message,
-        stack: error?.stack,
-        code: error?.code,
-        platform: Platform.OS,
-        documentDir: FileSystem.documentDirectory,
-        cacheDir: FileSystem.cacheDirectory,
-      });
-      
-      const errorMessage = error?.message || 'Unknown error occurred';
-      Alert.alert(
-        'Download Failed',
-        `Failed to download template:\n\n${errorMessage}\n\nCheck console for details.`,
-        [{ text: 'OK' }]
-      );
+      const { downloadTemplate } = await import('@/utils/templateDownload');
+      await downloadTemplate(FIELDS_TEMPLATE_CSV, 'fields_template.csv', 'text/csv');
+    } catch (error) {
+      console.error('Download template error:', error);
+      // Error already handled in downloadTemplate utility
     } finally {
       setIsDownloadingTemplate(false);
     }

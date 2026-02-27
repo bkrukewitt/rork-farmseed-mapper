@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DataProvider } from "@/contexts/DataContext";
+import { FarmProvider } from "@/contexts/FarmContext";
 import Colors from "@/constants/colors";
 import { checkOnboardingComplete, resetOnboarding } from "./onboarding";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -85,6 +86,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <DataProvider>
+          <FarmProvider>
           <Stack
             screenOptions={{
               headerBackTitle: "Back",
@@ -149,7 +151,28 @@ export default function RootLayout() {
                 title: 'Upload Fields',
               }} 
             />
+            <Stack.Screen 
+              name="farm-setup" 
+              options={{ 
+                presentation: 'modal',
+                title: 'Farm Setup',
+              }} 
+            />
+            <Stack.Screen 
+              name="farm-members" 
+              options={{ 
+                title: 'Farm Members',
+              }} 
+            />
+            <Stack.Screen 
+              name="admin-menu" 
+              options={{ 
+                presentation: 'modal',
+                title: 'Admin',
+              }} 
+            />
           </Stack>
+          </FarmProvider>
         </DataProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

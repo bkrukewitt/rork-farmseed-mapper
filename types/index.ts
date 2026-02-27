@@ -129,3 +129,28 @@ export interface InventoryUsage {
   quantityUsed: number;
   usedAt: string;
 }
+
+export interface Farm {
+  id: string;
+  name: string;
+  password?: string | null;
+  created_at: string;
+}
+
+export interface FarmMember {
+  id: string;
+  farm_id: string;
+  user_name: string;
+  device_id: string;
+  is_admin: boolean;
+  joined_at: string;
+}
+
+export interface FarmDataRow {
+  id: string;
+  farm_id: string;
+  data_type: 'entry' | 'field' | 'inventory' | 'inventory_usage';
+  data: Record<string, unknown>;
+  updated_at: string;
+  created_at: string;
+}

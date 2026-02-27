@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 import { SeedEntry, Field, InventoryItem, InventoryUsage } from '@/types';
@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   FIELDS: 'farmseed_fields',
   INVENTORY: 'farmseed_inventory',
   INVENTORY_USAGE: 'farmseed_inventory_usage',
+  PENDING_DELETES: 'farmseed_pending_deletes',
 };
 
 function generateId(): string {
@@ -20,6 +21,7 @@ export const [DataProvider, useData] = createContextHook(() => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [inventoryUsage, setInventoryUsage] = useState<InventoryUsage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingDeletes, setPendingDeletes] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -28,17 +30,19 @@ export const [DataProvider, useData] = createContextHook(() => {
   const loadData = async () => {
     try {
       console.log('Loading data from AsyncStorage...');
-      const [entriesData, fieldsData, inventoryData, usageData] = await Promise.all([
+      const [entriesData, fieldsData, inventoryData, usageData, deletesData] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.ENTRIES),
         AsyncStorage.getItem(STORAGE_KEYS.FIELDS),
         AsyncStorage.getItem(STORAGE_KEYS.INVENTORY),
         AsyncStorage.getItem(STORAGE_KEYS.INVENTORY_USAGE),
+        AsyncStorage.getItem(STORAGE_KEYS.PENDING_DELETES),
       ]);
 
       if (entriesData) setEntries(JSON.parse(entriesData));
       if (fieldsData) setFields(JSON.parse(fieldsData));
       if (inventoryData) setInventory(JSON.parse(inventoryData));
       if (usageData) setInventoryUsage(JSON.parse(usageData));
+      if (deletesData) setPendingDeletes(JSON.parse(deletesData));
       
       console.log('Data loaded successfully');
     } catch (error) {
@@ -47,6 +51,25 @@ export const [DataProvider, useData] = createContextHook(() => {
       setIsLoading(false);
     }
   };
+
+  const trackDeletion = async (id: string) => {
+    const updated = [...pendingDeletes, id];
+    setPendingDeletes(updated);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.PENDING_DELETES, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error tracking deletion:', error);
+    }
+  };
+
+  const clearPendingDeletes = useCallback(async () => {
+    setPendingDeletes([]);
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_DELETES);
+    } catch (error) {
+      console.error('Error clearing pending deletes:', error);
+    }
+  }, []);
 
   const saveEntries = async (newEntries: SeedEntry[]) => {
     try {
@@ -69,8 +92,8 @@ export const [DataProvider, useData] = createContextHook(() => {
   const addEntry = useCallback((entry: Omit<SeedEntry, 'id' | 'createdAt' | 'updatedAt' | 'entryDate' | 'entryTime'>) => {
     const now = new Date();
     const nowISO = now.toISOString();
-    const entryDate = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const entryTime = now.toTimeString().split(' ')[0]; // HH:MM:SS
+    const entryDate = now.toISOString().split('T')[0];
+    const entryTime = now.toTimeString().split(' ')[0];
     const newEntry: SeedEntry = {
       ...entry,
       id: generateId(),
@@ -98,8 +121,9 @@ export const [DataProvider, useData] = createContextHook(() => {
   const deleteEntry = useCallback((id: string) => {
     const newEntries = entries.filter(entry => entry.id !== id);
     saveEntries(newEntries);
+    trackDeletion(id);
     console.log('Entry deleted:', id);
-  }, [entries]);
+  }, [entries, pendingDeletes]);
 
   const addField = useCallback((field: Omit<Field, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date().toISOString();
@@ -142,8 +166,9 @@ export const [DataProvider, useData] = createContextHook(() => {
   const deleteField = useCallback((id: string) => {
     const newFields = fields.filter(field => field.id !== id);
     saveFields(newFields);
+    trackDeletion(id);
     console.log('Field deleted:', id);
-  }, [fields]);
+  }, [fields, pendingDeletes]);
 
   const getEntryById = useCallback((id: string) => {
     return entries.find(entry => entry.id === id);
@@ -212,8 +237,9 @@ export const [DataProvider, useData] = createContextHook(() => {
   const deleteInventoryItem = useCallback((id: string) => {
     const newInventory = inventory.filter(item => item.id !== id);
     saveInventory(newInventory);
+    trackDeletion(id);
     console.log('Inventory item deleted:', id);
-  }, [inventory]);
+  }, [inventory, pendingDeletes]);
 
   const getInventoryItemById = useCallback((id: string) => {
     return inventory.find(item => item.id === id);
@@ -257,12 +283,37 @@ export const [DataProvider, useData] = createContextHook(() => {
       .reduce((sum, u) => sum + u.quantityUsed, 0);
   }, [inventoryUsage]);
 
+  const replaceAllData = useCallback(async (
+    newEntries: SeedEntry[],
+    newFields: Field[],
+    newInventory: InventoryItem[],
+    newUsage: InventoryUsage[],
+  ) => {
+    console.log('Replacing all data - entries:', newEntries.length, 'fields:', newFields.length, 'inventory:', newInventory.length, 'usage:', newUsage.length);
+    setEntries(newEntries);
+    setFields(newFields);
+    setInventory(newInventory);
+    setInventoryUsage(newUsage);
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_KEYS.ENTRIES, JSON.stringify(newEntries)),
+        AsyncStorage.setItem(STORAGE_KEYS.FIELDS, JSON.stringify(newFields)),
+        AsyncStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(newInventory)),
+        AsyncStorage.setItem(STORAGE_KEYS.INVENTORY_USAGE, JSON.stringify(newUsage)),
+      ]);
+      console.log('All data replaced and saved');
+    } catch (error) {
+      console.error('Error replacing all data:', error);
+    }
+  }, []);
+
   return {
     entries,
     fields,
     inventory,
     inventoryUsage,
     isLoading,
+    pendingDeletes,
     addEntry,
     updateEntry,
     deleteEntry,
@@ -280,6 +331,8 @@ export const [DataProvider, useData] = createContextHook(() => {
     consumeInventory,
     getUsageForItem,
     getTotalUsedForItem,
+    replaceAllData,
+    clearPendingDeletes,
   };
 });
 

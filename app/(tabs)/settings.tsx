@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as XLSX from 'xlsx';
+import * as Haptics from 'expo-haptics';
 import {
   Trash2,
   Download,
@@ -22,15 +25,49 @@ import {
   Leaf,
   FileSpreadsheet,
   HelpCircle,
+  Users,
+  LogOut,
+  RefreshCw,
+  Tractor,
+  Shield,
+  Wifi,
+  WifiOff,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useFarm } from '@/contexts/FarmContext';
 import { useRouter } from 'expo-router';
 
 export default function SettingsScreen() {
-  const { entries, fields } = useData();
+  const { entries, fields, inventory } = useData();
+  const farm = useFarm();
   const [isExporting, setIsExporting] = useState(false);
+  const [logoTapCount, setLogoTapCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+
+  const handleLogoTap = () => {
+    const newCount = logoTapCount + 1;
+    setLogoTapCount(newCount);
+    if (newCount >= 7) {
+      setLogoTapCount(0);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      router.push('/admin-menu');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (farm.farmId) {
+        await farm.performSync();
+      }
+    } catch (err) {
+      console.error('Settings refresh error:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleViewOnboarding = () => {
     router.push('/onboarding');
@@ -194,6 +231,44 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleLeaveFarm = () => {
+    Alert.alert(
+      'Leave Farm',
+      'You will be disconnected from the farm. Your local data will remain but will no longer sync.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await farm.leaveFarm();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to leave farm');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleManualSync = async () => {
+    if (!farm.farmId || farm.isSyncing) return;
+    try {
+      await farm.performSync();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      Alert.alert('Sync Error', 'Failed to sync data. Check your connection.');
+    }
+  };
+
+  const formatSyncTime = (iso: string | null): string => {
+    if (!iso) return 'Never';
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   const SettingRow = ({
     icon,
     title,
@@ -201,6 +276,7 @@ export default function SettingsScreen() {
     onPress,
     destructive = false,
     value,
+    rightElement,
   }: {
     icon: ReactNode;
     title: string;
@@ -208,6 +284,7 @@ export default function SettingsScreen() {
     onPress?: () => void;
     destructive?: boolean;
     value?: string;
+    rightElement?: ReactNode;
   }) => (
     <TouchableOpacity
       style={styles.settingRow}
@@ -225,16 +302,31 @@ export default function SettingsScreen() {
         {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
       </View>
       {value && <Text style={styles.settingValue}>{value}</Text>}
-      {onPress && <ChevronRight size={18} color={Colors.textLight} />}
+      {rightElement}
+      {onPress && !rightElement && <ChevronRight size={18} color={Colors.textLight} />}
     </TouchableOpacity>
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        farm.farmId ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+          />
+        ) : undefined
+      }
+    >
       <View style={styles.header}>
-        <View style={styles.logoContainer}>
-          <Leaf size={40} color={Colors.primary} />
-        </View>
+        <TouchableOpacity onPress={handleLogoTap} activeOpacity={1}>
+          <View style={styles.logoContainer}>
+            <Leaf size={40} color={Colors.primary} />
+          </View>
+        </TouchableOpacity>
         <Text style={styles.appName}>FarmSeed Mapper</Text>
       </View>
 
@@ -250,10 +342,80 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            {new Set(entries.map(e => e.producer)).size}
-          </Text>
-          <Text style={styles.statLabel}>Producers</Text>
+          <Text style={styles.statValue}>{inventory.length}</Text>
+          <Text style={styles.statLabel}>Inventory</Text>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Farm Sync</Text>
+        <View style={styles.sectionContent}>
+          {farm.farmId ? (
+            <>
+              <View style={styles.farmInfoBanner}>
+                <View style={styles.farmStatusRow}>
+                  <Wifi size={16} color={Colors.success} />
+                  <Text style={styles.farmStatusText}>Connected</Text>
+                </View>
+                <Text style={styles.farmIdDisplay}>{farm.farmId}</Text>
+                {farm.farmName ? (
+                  <Text style={styles.farmNameDisplay}>{farm.farmName}</Text>
+                ) : null}
+                <Text style={styles.farmUserDisplay}>
+                  {farm.userName} {farm.isAdmin ? '(Admin)' : ''}
+                </Text>
+              </View>
+              <SettingRow
+                icon={<RefreshCw size={20} color={Colors.primary} />}
+                title="Sync Now"
+                subtitle={`Last sync: ${formatSyncTime(farm.lastSyncAt)}`}
+                onPress={handleManualSync}
+                rightElement={
+                  farm.isSyncing ? (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  ) : (
+                    <ChevronRight size={18} color={Colors.textLight} />
+                  )
+                }
+              />
+              {farm.syncError && (
+                <View style={styles.syncErrorBanner}>
+                  <Text style={styles.syncErrorText}>{farm.syncError}</Text>
+                </View>
+              )}
+              <SettingRow
+                icon={<Users size={20} color={Colors.primary} />}
+                title="Farm Members"
+                subtitle={`${farm.members.length} member${farm.members.length !== 1 ? 's' : ''}`}
+                onPress={() => router.push('/farm-members')}
+              />
+              <SettingRow
+                icon={<LogOut size={20} color={Colors.error} />}
+                title="Leave Farm"
+                subtitle="Disconnect from this farm"
+                onPress={handleLeaveFarm}
+                destructive
+              />
+            </>
+          ) : (
+            <>
+              <View style={styles.farmInfoBanner}>
+                <View style={styles.farmStatusRow}>
+                  <WifiOff size={16} color={Colors.textLight} />
+                  <Text style={[styles.farmStatusText, { color: Colors.textLight }]}>Not Connected</Text>
+                </View>
+                <Text style={styles.farmDisconnectedText}>
+                  Join or create a farm to share data with your team
+                </Text>
+              </View>
+              <SettingRow
+                icon={<Tractor size={20} color={Colors.primary} />}
+                title="Join or Create Farm"
+                subtitle="Connect to share data with your team"
+                onPress={() => router.push('/farm-setup')}
+              />
+            </>
+          )}
         </View>
       </View>
 
@@ -398,6 +560,54 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
     overflow: 'hidden',
+  },
+  farmInfoBanner: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  farmStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  farmStatusText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.success,
+  },
+  farmIdDisplay: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    letterSpacing: 0.5,
+  },
+  farmNameDisplay: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  farmUserDisplay: {
+    fontSize: 13,
+    color: Colors.textLight,
+    marginTop: 4,
+  },
+  farmDisconnectedText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  syncErrorBanner: {
+    backgroundColor: Colors.error + '10',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  syncErrorText: {
+    fontSize: 12,
+    color: Colors.error,
   },
   settingRow: {
     flexDirection: 'row',

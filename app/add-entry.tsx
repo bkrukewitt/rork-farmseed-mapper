@@ -345,6 +345,7 @@ export default function AddEntryScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
     >
       <Stack.Screen options={{ title: isEditMode ? 'Edit Entry' : 'Add Entry' }} />
       <ScrollView

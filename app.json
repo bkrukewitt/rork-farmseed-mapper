@@ -2,7 +2,7 @@
   "expo": {
     "name": "FarmSeed Mapper",
     "slug": "farmseed-mapper",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "rork-app",
@@ -13,9 +13,12 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "app.rork.farmseed-mapper",
+  "ios": {
+    "supportsTablet": false,
+    "bundleIdentifier": "app.rork.farmseed-mapper",
+    "config": {
+      "usesNonExemptEncryption": false
+    },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "FarmSeed Mapper uses your location to mark field boundaries, record where inventory items are stored, and save GPS coordinates for your farm entries. For example, when you add a new entry, your current location is automatically recorded so you can view it on the map later.",
         "NSPhotoLibraryUsageDescription": "FarmSeed Mapper accesses your photo library so you can attach existing photos to your farm entries and inventory records. For example, you can add a photo of a crop condition or equipment to document it.",
@@ -23,8 +26,8 @@
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
         "NSLocationAlwaysUsageDescription": "Allow $(PRODUCT_NAME) to use your location.",
-        "UIBackgroundModes": [
-        ]
+        "UIBackgroundModes": [],
+        "NSAppUsesNonExemptEncryption": false
       },
       "usesIcloudStorage": true
     },
@@ -34,17 +37,19 @@
         "backgroundColor": "#ffffff"
       },
       "package": "app.rork.farmseed_mapper",
+      "versionCode": 1,
       "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.VIBRATE",
-        "INTERNET"
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -83,6 +88,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": "https://rork.com/"
+      },
+      "eas": {
+        "projectId": "68d9f9df-ae54-4843-85d6-2a18834f3420"
+      }
+    },
+    "owner": "bkrukewitt"
   }
 }

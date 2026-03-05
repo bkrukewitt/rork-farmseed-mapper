@@ -34,9 +34,6 @@ import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { InventoryItem } from '@/types';
 
-const INVENTORY_CSV_TEMPLATE = `Name,Producer,Variety,Lot Number,Quantity,Unit,Seeds Per Unit,Germination %,Traits,Treatments,Notes
-Example Seed,Pioneer,P1234,LOT123,10,bags,80000,95,"Roundup Ready,Liberty Link","Cruiser,Poncho",Sample inventory item`;
-
 export default function InventoryScreen() {
   const router = useRouter();
   const { inventory, inventoryUsage, isLoading, getTotalUsedForItem, getEntryById } = useData();
@@ -92,22 +89,20 @@ export default function InventoryScreen() {
     router.push('/add-inventory' as any);
   };
 
+  const handleUploadFile = () => {
+    setShowActionModal(false);
+    router.push('/upload-inventory' as any);
+  };
+
   const handleDownloadTemplate = async () => {
     setShowActionModal(false);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const { downloadTemplate } = await import('@/utils/templateDownload');
-      await downloadTemplate(INVENTORY_CSV_TEMPLATE, 'inventory_template.csv', 'text/csv');
-      console.log('Inventory template downloaded');
+      const { downloadInventoryTemplate } = await import('@/utils/csvTemplates');
+      await downloadInventoryTemplate();
     } catch (error) {
-      console.error('Download template error:', error);
-      // Error already handled in downloadTemplate utility
+      console.error('Template download error:', error);
     }
-  };
-
-  const handleUploadFile = () => {
-    setShowActionModal(false);
-    router.push('/upload-inventory' as any);
   };
 
   const handleExportData = async () => {

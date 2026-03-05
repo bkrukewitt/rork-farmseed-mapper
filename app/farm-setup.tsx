@@ -35,6 +35,10 @@ export default function FarmSetupScreen() {
       Alert.alert('Required', 'Enter a Farm ID');
       return;
     }
+    if (farmId.includes(' ')) {
+      Alert.alert('Invalid Farm ID', 'Farm ID cannot contain spaces. Use letters, numbers, and symbols only.');
+      return;
+    }
     if (!localUserName.trim()) {
       Alert.alert('Required', 'Enter your name');
       return;
@@ -64,6 +68,10 @@ export default function FarmSetupScreen() {
   const handleJoin = async () => {
     if (!farmId.trim()) {
       Alert.alert('Required', 'Enter a Farm ID');
+      return;
+    }
+    if (farmId.includes(' ')) {
+      Alert.alert('Invalid Farm ID', 'Farm ID cannot contain spaces. Use letters, numbers, and symbols only.');
       return;
     }
     if (!localUserName.trim()) {
@@ -205,8 +213,8 @@ export default function FarmSetupScreen() {
             />
             <Text style={styles.inputHint}>
               {isCreateMode
-                ? 'Choose a unique ID to share with your team'
-                : 'Enter the ID shared by your farm admin'}
+                ? 'Choose a unique ID (no spaces) to share with your team'
+                : 'Enter the ID (no spaces) shared by your farm admin'}
             </Text>
           </View>
 

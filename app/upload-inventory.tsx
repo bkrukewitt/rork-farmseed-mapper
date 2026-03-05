@@ -50,10 +50,6 @@ interface ParsedRow {
 
 const BATCH_SIZE = 50;
 
-const INVENTORY_TEMPLATE_CSV = `Name,Producer,Variety,Lot Number,Quantity,Unit,Seeds Per Unit,Germination %,Purchase Date,Expiration Date,Traits,Treatments,Notes
-Corn Hybrid A,Pioneer,P1234,LOT-2024-001,50,bags,80000,95%,2024-01-15,2025-12-31,"Drought Tolerant,High Yield",Treated,Sample entry
-Soybean Premium,Dekalb,DK4567,LOT-2024-002,30,bags,140000,92%,2024-02-01,2025-06-30,Non-GMO,,Another sample`;
-
 export default function UploadInventoryScreen() {
   const router = useRouter();
   const { addMultipleInventoryItems } = useData();
@@ -422,11 +418,10 @@ export default function UploadInventoryScreen() {
   const downloadTemplate = async () => {
     setIsDownloadingTemplate(true);
     try {
-      const { downloadTemplate } = await import('@/utils/templateDownload');
-      await downloadTemplate(INVENTORY_TEMPLATE_CSV, 'inventory_template.csv', 'text/csv');
+      const { downloadInventoryTemplate } = await import('@/utils/csvTemplates');
+      await downloadInventoryTemplate();
     } catch (error) {
-      console.error('Download template error:', error);
-      // Error already handled in downloadTemplate utility
+      console.error('Template download error:', error);
     } finally {
       setIsDownloadingTemplate(false);
     }

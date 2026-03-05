@@ -32,10 +32,6 @@ import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { Field } from '@/types';
 
-const FIELD_CSV_TEMPLATE = `Name,Acreage,Crop Type,Latitude,Longitude,Color,Notes
-North 40,80,Corn,40.123456,-95.123456,#4CAF50,Example field
-South Field,120,Soybeans,40.234567,-95.234567,#2196F3,Another example`;
-
 export default function FieldsScreen() {
   const router = useRouter();
   const { fields } = useData();
@@ -62,22 +58,20 @@ export default function FieldsScreen() {
     router.push('/add-field' as never);
   };
 
+  const handleUploadFile = () => {
+    setShowActionModal(false);
+    router.push('/upload-fields' as never);
+  };
+
   const handleDownloadTemplate = async () => {
     setShowActionModal(false);
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const { downloadTemplate } = await import('@/utils/templateDownload');
-      await downloadTemplate(FIELD_CSV_TEMPLATE, 'fields_template.csv', 'text/csv');
-      console.log('Fields template downloaded');
+      const { downloadFieldsTemplate } = await import('@/utils/csvTemplates');
+      await downloadFieldsTemplate();
     } catch (error) {
-      console.error('Download template error:', error);
-      // Error already handled in downloadTemplate utility
+      console.error('Template download error:', error);
     }
-  };
-
-  const handleUploadFile = () => {
-    setShowActionModal(false);
-    router.push('/upload-fields' as never);
   };
 
   const handleExportData = async () => {

@@ -42,10 +42,6 @@ interface ParsedField {
 
 const BATCH_SIZE = 50;
 
-const FIELDS_TEMPLATE_CSV = `Name,Acreage,Crop Type,Latitude,Longitude,Color,Notes
-North Field,120,Corn,41.8781,-87.6298,#4CAF50,Sample field entry
-South Pasture,80,Soybeans,41.8750,-87.6320,#2196F3,Another sample field`;
-
 export default function UploadFieldsScreen() {
   const router = useRouter();
   const { addMultipleFields } = useData();
@@ -395,11 +391,10 @@ export default function UploadFieldsScreen() {
   const downloadTemplate = async () => {
     setIsDownloadingTemplate(true);
     try {
-      const { downloadTemplate } = await import('@/utils/templateDownload');
-      await downloadTemplate(FIELDS_TEMPLATE_CSV, 'fields_template.csv', 'text/csv');
+      const { downloadFieldsTemplate } = await import('@/utils/csvTemplates');
+      await downloadFieldsTemplate();
     } catch (error) {
-      console.error('Download template error:', error);
-      // Error already handled in downloadTemplate utility
+      console.error('Template download error:', error);
     } finally {
       setIsDownloadingTemplate(false);
     }

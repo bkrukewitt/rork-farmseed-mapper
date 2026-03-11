@@ -364,7 +364,7 @@ export default function UploadFieldsScreen() {
       }
 
       if (!abortRef.current) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
           'Import Complete',
           `Successfully imported ${parsedData.length} fields`,
@@ -391,10 +391,13 @@ export default function UploadFieldsScreen() {
   const downloadTemplate = async () => {
     setIsDownloadingTemplate(true);
     try {
+      console.log('[UploadFields] Starting template download');
       const { downloadFieldsTemplate } = await import('@/utils/csvTemplates');
       await downloadFieldsTemplate();
+      console.log('[UploadFields] Template download completed');
     } catch (error) {
-      console.error('Template download error:', error);
+      console.error('[UploadFields] Template download error:', error);
+      Alert.alert('Error', 'Failed to download template. Please try again.');
     } finally {
       setIsDownloadingTemplate(false);
     }

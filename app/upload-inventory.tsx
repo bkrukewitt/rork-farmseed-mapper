@@ -391,7 +391,7 @@ export default function UploadInventoryScreen() {
       }
 
       if (!abortRef.current) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
           'Import Complete',
           `Successfully imported ${parsedData.length} inventory items`,
@@ -418,10 +418,13 @@ export default function UploadInventoryScreen() {
   const downloadTemplate = async () => {
     setIsDownloadingTemplate(true);
     try {
+      console.log('[UploadInventory] Starting template download');
       const { downloadInventoryTemplate } = await import('@/utils/csvTemplates');
       await downloadInventoryTemplate();
+      console.log('[UploadInventory] Template download completed');
     } catch (error) {
-      console.error('Template download error:', error);
+      console.error('[UploadInventory] Template download error:', error);
+      Alert.alert('Error', 'Failed to download template. Please try again.');
     } finally {
       setIsDownloadingTemplate(false);
     }

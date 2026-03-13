@@ -106,8 +106,13 @@ export default function PaywallScreen() {
     router.back();
   };
 
+  useEffect(() => {
+    if (isProUser) {
+      router.back();
+    }
+  }, [isProUser, router]);
+
   if (isProUser) {
-    router.back();
     return null;
   }
 

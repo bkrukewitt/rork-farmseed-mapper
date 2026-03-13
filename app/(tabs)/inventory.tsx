@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { downloadInventoryTemplate } from '@/utils/csvTemplates';
 import {
   Package,
   Plus,
@@ -104,7 +105,6 @@ export default function InventoryScreen() {
     setShowActionModal(false);
     try {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const { downloadInventoryTemplate } = await import('@/utils/csvTemplates');
       await downloadInventoryTemplate();
     } catch (error) {
       console.error('Template download error:', error);

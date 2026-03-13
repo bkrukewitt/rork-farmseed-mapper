@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,13 @@ import {
   Keyboard,
   InputAccessoryView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
+import { Camera as CameraModule } from 'expo-camera';
 import {
   Camera,
   Image as ImageIcon,
@@ -30,6 +32,9 @@ import {
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { Coordinates, PRODUCER_OPTIONS, TRAIT_OPTIONS, TREATMENT_OPTIONS, InventoryItem, Field } from '@/types';
+import { getAndClearSeedTagScanResult } from '@/utils/seedTagScanResult';
+import { parseSeedTagQR } from '@/utils/parseSeedTagQR';
+import { setSeedTagScanResult } from '@/utils/seedTagScanResult';
 
 export default function AddEntryScreen() {
   const router = useRouter();
@@ -92,6 +97,30 @@ export default function AddEntryScreen() {
       keyboardWillHide.remove();
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const raw = getAndClearSeedTagScanResult();
+      if (!raw || isEditMode) return;
+      try {
+        const parsed = parseSeedTagQR(raw);
+        if (parsed.producer) setProducer(parsed.producer);
+        if (parsed.varietyName) setVarietyName(parsed.varietyName);
+        if (parsed.lotNumber) setLotNumber(parsed.lotNumber);
+        if (parsed.germinationPercent) setGerminationPercent(parsed.germinationPercent);
+        if (parsed.notes) setNotes(prev => (prev ? `${prev}\n${parsed.notes}` : (parsed.notes ?? '')));
+        const hasUrlOnly = parsed.notes && /^https?:\/\//i.test(parsed.notes.trim()) && !parsed.producer && !parsed.varietyName && !parsed.lotNumber;
+        Alert.alert(
+          'Seed tag scanned',
+          hasUrlOnly
+            ? 'Link saved in notes. Fill in variety and lot from the webpage if needed.'
+            : 'Review and edit the fields below.'
+        );
+      } catch {
+        Alert.alert('Seed tag scanned', 'Could not parse QR content. You can paste it in notes if needed.');
+      }
+    }, [isEditMode])
+  );
 
   useEffect(() => {
     if (existingEntry) {
@@ -205,6 +234,50 @@ export default function AddEntryScreen() {
 
   const removePhoto = (index: number) => {
     setPhotos(photos.filter((_, i) => i !== index));
+  };
+
+  const handleScanSeedTagQR = () => {
+    router.push('/scan-seed-qr');
+  };
+
+  const handleScanFromPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Photo library access is required to scan a QR from a photo.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+      if (result.canceled || !result.assets[0]) return;
+      const uri = result.assets[0].uri;
+      const scanResults = await CameraModule.scanFromURLAsync(uri, ['qr']);
+      if (scanResults && scanResults.length > 0 && scanResults[0].data) {
+        setSeedTagScanResult(scanResults[0].data);
+        const parsed = parseSeedTagQR(scanResults[0].data);
+        if (parsed.producer) setProducer(parsed.producer);
+        if (parsed.varietyName) setVarietyName(parsed.varietyName);
+        if (parsed.lotNumber) setLotNumber(parsed.lotNumber);
+        if (parsed.germinationPercent) setGerminationPercent(parsed.germinationPercent);
+        if (parsed.notes) setNotes(prev => (prev ? `${prev}\n${parsed.notes}` : (parsed.notes ?? '')));
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const hasUrlOnly = parsed.notes && /^https?:\/\//i.test(parsed.notes.trim()) && !parsed.producer && !parsed.varietyName && !parsed.lotNumber;
+        Alert.alert(
+          'Seed tag scanned',
+          hasUrlOnly
+            ? 'Link saved in notes. Fill in variety and lot from the webpage if needed.'
+            : 'Review and edit the fields below.'
+        );
+      } else {
+        Alert.alert('No QR code found', 'No QR code was found in the selected image. Try another photo.');
+      }
+    } catch (error) {
+      console.error('Scan from photo error:', error);
+      Alert.alert('Error', 'Failed to scan image for QR code. Please try again.');
+    }
   };
 
   const toggleTrait = (trait: string) => {
@@ -503,6 +576,19 @@ export default function AddEntryScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Seed Details</Text>
+
+          {!isEditMode && Platform.OS !== 'web' && (
+            <View style={styles.scanQRRow}>
+              <TouchableOpacity style={styles.scanQRButton} onPress={handleScanSeedTagQR}>
+                <Camera size={20} color={Colors.primary} />
+                <Text style={styles.scanQRButtonText}>Scan seed tag QR</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.scanQRButton} onPress={handleScanFromPhoto}>
+                <ImageIcon size={20} color={Colors.primary} />
+                <Text style={styles.scanQRButtonText}>Scan from photo</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {inventory.length > 0 && !isEditMode && (
             <>
@@ -991,6 +1077,29 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.text,
     marginBottom: 12,
+  },
+  scanQRRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  scanQRButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  scanQRButtonText: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: Colors.primary,
   },
   photoGrid: {
     flexDirection: 'row',

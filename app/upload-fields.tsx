@@ -17,6 +17,7 @@ import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
+import { downloadFieldsTemplate } from '@/utils/csvTemplates';
 import {
   FileSpreadsheet,
   Upload,
@@ -392,7 +393,6 @@ export default function UploadFieldsScreen() {
     setIsDownloadingTemplate(true);
     try {
       console.log('[UploadFields] Starting template download');
-      const { downloadFieldsTemplate } = await import('@/utils/csvTemplates');
       await downloadFieldsTemplate();
       console.log('[UploadFields] Template download completed');
     } catch (error) {

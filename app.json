@@ -84,6 +84,12 @@
         {
           "iCloudContainerEnvironment": "Production"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FarmSeed Mapper uses your camera to capture photos and to scan seed tag QR codes for quick entry."
+        }
       ]
     ],
     "experiments": {

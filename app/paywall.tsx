@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   Platform,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +19,8 @@ import {
   RefreshCw,
   Package,
   Check,
+  Shield,
+  Sparkles,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -38,6 +41,31 @@ export default function PaywallScreen() {
   } = useSubscription();
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('annual');
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const iconScale = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconScale, {
+        toValue: 1,
+        friction: 4,
+        tension: 60,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim, iconScale]);
 
   const handlePurchase = async () => {
     const pkg = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
@@ -74,6 +102,7 @@ export default function PaywallScreen() {
   };
 
   const handleDismiss = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.back();
   };
 
@@ -93,16 +122,25 @@ export default function PaywallScreen() {
 
   return (
     <View style={styles.root}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={handleDismiss}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          testID="paywall-close"
-        >
-          <X size={24} color={Colors.textSecondary} />
-        </TouchableOpacity>
-      </SafeAreaView>
+      <View style={styles.topBar}>
+        <SafeAreaView edges={['top']}>
+          <View style={styles.topBarInner}>
+            <View style={{ width: 36 }} />
+            <View style={styles.topBadge}>
+              <Sparkles size={14} color={Colors.accent} />
+              <Text style={styles.topBadgeText}>PREMIUM</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleDismiss}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              testID="paywall-close"
+            >
+              <X size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -110,59 +148,67 @@ export default function PaywallScreen() {
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        <View style={styles.heroSection}>
-          <View style={styles.iconRing}>
+        <Animated.View style={[styles.heroSection, {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }]}>
+          <Animated.View style={[styles.iconRing, { transform: [{ scale: iconScale }] }]}>
             <View style={styles.iconInner}>
-              <Leaf size={36} color={Colors.primary} />
+              <Leaf size={32} color="#fff" />
             </View>
-          </View>
+          </Animated.View>
           <Text style={styles.heroTitle}>Seed Tracker</Text>
           <Text style={styles.heroTagline}>
             Track every seed, from bag to field
           </Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.benefitsSection}>
-          <View style={styles.benefitRow}>
-            <View style={styles.benefitIcon}>
-              <MapPin size={18} color={Colors.secondary} />
-            </View>
-            <Text style={styles.benefitText}>
-              GPS-pinned entries for every planting
-            </Text>
-          </View>
-          <View style={styles.benefitRow}>
-            <View style={styles.benefitIcon}>
-              <Package size={18} color={Colors.primary} />
-            </View>
-            <Text style={styles.benefitText}>
-              Full inventory & field management
-            </Text>
-          </View>
-          <View style={styles.benefitRow}>
-            <View style={styles.benefitIcon}>
-              <RefreshCw size={18} color={Colors.info} />
-            </View>
-            <Text style={styles.benefitText}>
-              Sync & share data across your farm team
-            </Text>
-          </View>
-        </View>
+        <Animated.View style={[styles.benefitsSection, {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }]}>
+          <BenefitRow
+            icon={<MapPin size={18} color={Colors.secondary} />}
+            text="GPS-pinned entries for every planting"
+            bgColor={Colors.secondary + '15'}
+          />
+          <BenefitRow
+            icon={<Package size={18} color={Colors.primary} />}
+            text="Full inventory & field management"
+            bgColor={Colors.primary + '15'}
+          />
+          <BenefitRow
+            icon={<RefreshCw size={18} color={Colors.info} />}
+            text="Sync & share data across your farm team"
+            bgColor={Colors.info + '15'}
+          />
+        </Animated.View>
 
-        <View style={styles.plansSection}>
+        <Animated.View style={[styles.plansSection, { opacity: fadeAnim }]}>
           <TouchableOpacity
             style={[
               styles.planCard,
               selectedPlan === 'annual' && styles.planCardSelected,
             ]}
-            onPress={() => setSelectedPlan('annual')}
+            onPress={() => {
+              setSelectedPlan('annual');
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
             activeOpacity={0.8}
             testID="plan-annual"
           >
+            {savingsPercent > 0 && (
+              <View style={styles.savingsBadge}>
+                <Text style={styles.savingsText}>SAVE {savingsPercent}%</Text>
+              </View>
+            )}
             <View style={styles.planHeader}>
-              <View style={styles.planRadio}>
+              <View style={[
+                styles.planRadio,
+                selectedPlan === 'annual' && styles.planRadioSelected,
+              ]}>
                 {selectedPlan === 'annual' && (
-                  <View style={styles.planRadioFill} />
+                  <Check size={14} color="#fff" strokeWidth={3} />
                 )}
               </View>
               <View style={styles.planInfo}>
@@ -171,7 +217,7 @@ export default function PaywallScreen() {
                   selectedPlan === 'annual' && styles.planTitleSelected,
                 ]}>Annual</Text>
                 <Text style={styles.planBreakdown}>
-                  ${annualMonthly}/mo
+                  ${annualMonthly}/mo — best value
                 </Text>
               </View>
               <View style={styles.planPriceCol}>
@@ -182,11 +228,6 @@ export default function PaywallScreen() {
                 <Text style={styles.planPeriod}>per year</Text>
               </View>
             </View>
-            {savingsPercent > 0 && (
-              <View style={styles.savingsBadge}>
-                <Text style={styles.savingsText}>Save {savingsPercent}%</Text>
-              </View>
-            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -194,14 +235,20 @@ export default function PaywallScreen() {
               styles.planCard,
               selectedPlan === 'monthly' && styles.planCardSelected,
             ]}
-            onPress={() => setSelectedPlan('monthly')}
+            onPress={() => {
+              setSelectedPlan('monthly');
+              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
             activeOpacity={0.8}
             testID="plan-monthly"
           >
             <View style={styles.planHeader}>
-              <View style={styles.planRadio}>
+              <View style={[
+                styles.planRadio,
+                selectedPlan === 'monthly' && styles.planRadioSelected,
+              ]}>
                 {selectedPlan === 'monthly' && (
-                  <View style={styles.planRadioFill} />
+                  <Check size={14} color="#fff" strokeWidth={3} />
                 )}
               </View>
               <View style={styles.planInfo}>
@@ -209,6 +256,7 @@ export default function PaywallScreen() {
                   styles.planTitle,
                   selectedPlan === 'monthly' && styles.planTitleSelected,
                 ]}>Monthly</Text>
+                <Text style={styles.planBreakdown}>Cancel anytime</Text>
               </View>
               <View style={styles.planPriceCol}>
                 <Text style={[
@@ -219,6 +267,13 @@ export default function PaywallScreen() {
               </View>
             </View>
           </TouchableOpacity>
+        </Animated.View>
+
+        <View style={styles.trustRow}>
+          <Shield size={14} color={Colors.textLight} />
+          <Text style={styles.trustText}>
+            Cancel anytime. Secure payment via {Platform.OS === 'ios' ? 'App Store' : Platform.OS === 'android' ? 'Google Play' : 'your store'}.
+          </Text>
         </View>
       </ScrollView>
 
@@ -234,10 +289,9 @@ export default function PaywallScreen() {
             {isPurchasing ? (
               <ActivityIndicator color={Colors.textInverse} size="small" />
             ) : (
-              <>
-                <Check size={20} color={Colors.textInverse} />
-                <Text style={styles.subscribeText}>Subscribe</Text>
-              </>
+              <Text style={styles.subscribeText}>
+                {selectedPlan === 'annual' ? `Subscribe — ${annualPrice}/yr` : `Subscribe — ${monthlyPrice}/mo`}
+              </Text>
             )}
           </TouchableOpacity>
 
@@ -259,63 +313,92 @@ export default function PaywallScreen() {
   );
 }
 
+function BenefitRow({ icon, text, bgColor }: { icon: React.ReactNode; text: string; bgColor: string }) {
+  return (
+    <View style={styles.benefitRow}>
+      <View style={[styles.benefitIcon, { backgroundColor: bgColor }]}>
+        {icon}
+      </View>
+      <Text style={styles.benefitText}>{text}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#FAF8F5',
+    backgroundColor: '#FBF8F4',
   },
-  safeArea: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
+  topBar: {
+    backgroundColor: '#FBF8F4',
     zIndex: 10,
+  },
+  topBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  topBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.accent + '18',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  topBadgeText: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    color: Colors.accent,
+    letterSpacing: 1.2,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Colors.surface,
+    backgroundColor: '#F0EDE8',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    marginRight: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 60 : 80,
     paddingHorizontal: 24,
     paddingBottom: 24,
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
+    marginTop: 8,
   },
   iconRing: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.primary + '12',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 18,
+    shadowColor: Colors.secondary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
   iconInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.primary + '20',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800' as const,
     color: Colors.text,
     marginBottom: 8,
@@ -328,13 +411,18 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   benefitsSection: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
+    backgroundColor: '#fff',
+    borderRadius: 18,
     padding: 20,
-    marginBottom: 28,
-    gap: 16,
+    marginBottom: 24,
+    gap: 14,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: '#EDE9E3',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   benefitRow: {
     flexDirection: 'row',
@@ -342,10 +430,9 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   benefitIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.backgroundDark,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -354,16 +441,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
     fontWeight: '500' as const,
+    lineHeight: 20,
   },
   plansSection: {
-    gap: 12,
+    gap: 10,
+    marginBottom: 16,
   },
   planCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 18,
     borderWidth: 2,
-    borderColor: Colors.borderLight,
+    borderColor: '#EDE9E3',
     overflow: 'hidden',
   },
   planCardSelected: {
@@ -375,31 +464,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   planRadio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: '#D4D0C8',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
-  planRadioFill: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  planRadioSelected: {
     backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   planInfo: {
     flex: 1,
   },
   planTitle: {
     fontSize: 17,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     color: Colors.text,
   },
   planTitleSelected: {
-    color: Colors.primary,
+    color: Colors.primaryDark,
   },
   planBreakdown: {
     fontSize: 13,
@@ -411,7 +498,7 @@ const styles = StyleSheet.create({
   },
   planPrice: {
     fontSize: 20,
-    fontWeight: '700' as const,
+    fontWeight: '800' as const,
     color: Colors.text,
   },
   planPriceSelected: {
@@ -432,43 +519,57 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 10,
   },
   savingsText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    color: Colors.textInverse,
-    letterSpacing: 0.3,
+    fontSize: 10,
+    fontWeight: '800' as const,
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+  },
+  trustText: {
+    fontSize: 12,
+    color: Colors.textLight,
+    textAlign: 'center',
+    lineHeight: 16,
   },
   bottomSafe: {
-    backgroundColor: '#FAF8F5',
+    backgroundColor: '#FBF8F4',
     borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    borderTopColor: '#EDE9E3',
   },
   bottomSection: {
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 8,
-    gap: 12,
+    gap: 10,
   },
   subscribeButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
+    borderRadius: 16,
+    paddingVertical: 17,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
   },
   subscribeButtonDisabled: {
     opacity: 0.7,
   },
   subscribeText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700' as const,
     color: Colors.textInverse,
+    letterSpacing: 0.2,
   },
   restoreButton: {
     alignItems: 'center',

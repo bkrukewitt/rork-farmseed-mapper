@@ -46,7 +46,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 export default function SettingsScreen() {
   const { entries, fields, inventory } = useData();
   const farm = useFarm();
-  const { isProUser, grandfathered, restore, isRestoring } = useSubscription();
+  const { isProUser, grandfathered, restore, isRestoring, expirationDate, willRenew, productIdentifier, hasEntitlement } = useSubscription();
   const [isExporting, setIsExporting] = useState(false);
   const [logoTapCount, setLogoTapCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -340,12 +340,48 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Subscription</Text>
         <View style={styles.sectionContent}>
           {isProUser ? (
-            <SettingRow
-              icon={<Crown size={20} color={Colors.accent} />}
-              title="Subscribed"
-              subtitle={grandfathered ? 'Grandfathered — free access' : 'Your subscription is active'}
-              value={grandfathered ? 'Legacy' : 'Active'}
-            />
+            <>
+              <View style={styles.subBanner}>
+                <View style={styles.subBannerRow}>
+                  <Crown size={18} color={Colors.accent} />
+                  <Text style={styles.subBannerTitle}>
+                    {grandfathered ? 'Legacy Access' : 'Seed Tracker'}
+                  </Text>
+                </View>
+                <Text style={styles.subBannerStatus}>
+                  {grandfathered
+                    ? 'Grandfathered — free access forever'
+                    : hasEntitlement
+                      ? `Active${productIdentifier ? ` • ${productIdentifier.includes('month') || productIdentifier.includes('002') ? 'Monthly' : 'Annual'}` : ''}`
+                      : 'Active'}
+                </Text>
+                {expirationDate && !grandfathered && (
+                  <Text style={styles.subBannerExpiry}>
+                    {willRenew ? 'Renews' : 'Expires'} {new Date(expirationDate).toLocaleDateString()}
+                  </Text>
+                )}
+              </View>
+              {!grandfathered && (
+                <SettingRow
+                  icon={<CreditCard size={20} color={Colors.primary} />}
+                  title="Manage Subscription"
+                  subtitle={Platform.OS === 'ios' ? 'Manage in App Store settings' : Platform.OS === 'android' ? 'Manage in Google Play' : 'Manage your plan'}
+                  onPress={() => {
+                    if (Platform.OS === 'web') {
+                      Alert.alert('Manage Subscription', 'Please manage your subscription through the store where you purchased it.');
+                    } else {
+                      Alert.alert(
+                        'Manage Subscription',
+                        Platform.OS === 'ios'
+                          ? 'You can manage or cancel your subscription in Settings > Apple ID > Subscriptions.'
+                          : 'You can manage or cancel your subscription in Google Play Store > Payments & subscriptions.',
+                        [{ text: 'OK' }]
+                      );
+                    }
+                  }}
+                />
+              )}
+            </>
           ) : (
             <>
               <SettingRow
@@ -728,5 +764,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: 24,
     opacity: 0.8,
+  },
+  subBanner: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    backgroundColor: Colors.accent + '08',
+  },
+  subBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  subBannerTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+  },
+  subBannerStatus: {
+    fontSize: 14,
+    color: Colors.secondary,
+    fontWeight: '600' as const,
+    marginTop: 2,
+  },
+  subBannerExpiry: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 4,
   },
 });

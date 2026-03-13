@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { getLogs, clearLogs } from '@/utils/debugLog';
 import { useFarm } from '@/contexts/FarmContext';
 
 const ADMIN_PIN = '9876';
@@ -42,6 +43,7 @@ export default function AdminMenuScreen() {
   const [accessLevel, setAccessLevel] = useState<AccessLevel>('locked');
   const [isProcessing, setIsProcessing] = useState(false);
   const [deleteFarmIdInput, setDeleteFarmIdInput] = useState('');
+  const [logText, setLogText] = useState('');
 
   const handlePinSubmit = () => {
     if (pin === ADMIN_PIN) {
@@ -56,6 +58,21 @@ export default function AdminMenuScreen() {
       setPin('');
     }
   };
+
+  const refreshLogs = () => {
+    setLogText(getLogs());
+  };
+
+  const handleClearLogs = () => {
+    clearLogs();
+    setLogText('');
+  };
+
+  useEffect(() => {
+    if (accessLevel !== 'locked') {
+      refreshLogs();
+    }
+  }, [accessLevel]);
 
   const handleDeleteFarm = () => {
     const targetId = deleteFarmIdInput.trim().toUpperCase();
@@ -247,6 +264,27 @@ export default function AdminMenuScreen() {
         </View>
       </View>
 
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Log Console</Text>
+        <View style={styles.sectionCard}>
+          <View style={styles.logBox}>
+            <ScrollView>
+              <Text style={styles.logText}>
+                {logText || 'No logs yet. Try triggering actions in the app, then tap Refresh Logs.'}
+              </Text>
+            </ScrollView>
+          </View>
+          <View style={styles.logButtonsRow}>
+            <TouchableOpacity style={styles.logButton} onPress={refreshLogs}>
+              <Text style={styles.logButtonText}>Refresh Logs</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.logButton, styles.logButtonSecondary]} onPress={handleClearLogs}>
+              <Text style={styles.logButtonSecondaryText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
       {accessLevel === 'admin' && (
         <>
           <View style={styles.section}>
@@ -429,6 +467,49 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: Colors.text,
     lineHeight: 20,
+  },
+  logBox: {
+    maxHeight: 240,
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+    backgroundColor: Colors.backgroundDark,
+  },
+  logText: {
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  logButtonsRow: {
+    flexDirection: 'row' as const,
+    justifyContent: 'flex-end' as const,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  logButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.info + '15',
+  },
+  logButtonText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.info,
+  },
+  logButtonSecondary: {
+    backgroundColor: Colors.backgroundDark,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  logButtonSecondaryText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.textSecondary,
   },
   actionRow: {
     flexDirection: 'row' as const,

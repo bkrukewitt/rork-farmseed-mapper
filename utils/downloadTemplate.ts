@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
-import { File, Paths } from 'expo-file-system';
+import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Share } from 'react-native';
+import { logDebug } from '@/utils/debugLog';
 
 export type DownloadTemplateOptions = {
   /** Full content of the file (e.g. CSV string) */
@@ -31,7 +32,10 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
     shareTitle = 'Template',
   } = options;
 
+  logDebug('template', `downloadTemplate called (platform=${Platform.OS}, file=${fileName})`);
+
   if (Platform.OS === 'web') {
+    logDebug('template', 'Using web blob download');
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -44,21 +48,35 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
     return;
   }
 
-  const file = new File(Paths.cache, fileName);
-  file.create({ overwrite: true });
-  file.write(content);
+  try {
+    const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+    if (!baseDir) {
+      logDebug('template', 'No cache/document directory available');
+      throw new Error('No writable directory available');
+    }
+    const path = `${baseDir}${fileName}`;
+    logDebug('template', `Writing file to ${path}`);
+    await FileSystem.writeAsStringAsync(path, content, { encoding: FileSystem.EncodingType.UTF8 });
 
-  const canShare = await Sharing.isAvailableAsync();
-  if (canShare) {
-    await Sharing.shareAsync(file.uri, {
-      mimeType,
-      dialogTitle,
-      UTI: uti,
-    });
-  } else {
-    await Share.share({
-      message: content,
-      title: shareTitle,
-    });
+    const canShare = await Sharing.isAvailableAsync();
+    logDebug('template', `Sharing.isAvailableAsync -> ${canShare}`);
+
+    if (canShare) {
+      await Sharing.shareAsync(path, {
+        mimeType,
+        dialogTitle,
+        UTI: uti,
+      });
+      logDebug('template', 'shareAsync completed');
+    } else {
+      logDebug('template', 'Sharing not available, falling back to Share.share');
+      await Share.share({
+        message: content,
+        title: shareTitle,
+      });
+    }
+  } catch (error) {
+    logDebug('template', `Error in downloadTemplate: ${(error as Error).message}`);
+    throw error;
   }
 }

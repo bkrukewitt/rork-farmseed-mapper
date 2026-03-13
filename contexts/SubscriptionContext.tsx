@@ -20,10 +20,12 @@ function getRCToken(): string {
   }) ?? '';
 }
 
-const rcToken = getRCToken();
+const rcToken = Platform.OS !== 'web' ? getRCToken() : '';
 if (rcToken) {
   console.log('[RC] Configuring RevenueCat...');
   Purchases.configure({ apiKey: rcToken });
+} else {
+  console.log('[RC] Skipping RevenueCat configuration (web or no key)');
 }
 
 export const [SubscriptionProvider, useSubscription] = createContextHook(() => {

@@ -51,8 +51,12 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
   try {
     const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
     if (!baseDir) {
-      logDebug('template', 'No cache/document directory available');
-      throw new Error('No writable directory available');
+      logDebug('template', 'No cache/document directory available; falling back to Share.share');
+      await Share.share({
+        message: content,
+        title: shareTitle,
+      });
+      return;
     }
     const path = `${baseDir}${fileName}`;
     logDebug('template', `Writing file to ${path}`);

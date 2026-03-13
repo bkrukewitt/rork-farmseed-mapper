@@ -30,11 +30,13 @@ import {
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Field } from '@/types';
 
 export default function FieldsScreen() {
   const router = useRouter();
   const { fields } = useData();
+  const { isProUser } = useSubscription();
   const [refreshing, setRefreshing] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
 
@@ -49,7 +51,11 @@ export default function FieldsScreen() {
   };
 
   const handleAddField = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!isProUser) {
+      router.push('/paywall' as never);
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowActionModal(true);
   };
 
@@ -66,7 +72,7 @@ export default function FieldsScreen() {
   const handleDownloadTemplate = async () => {
     setShowActionModal(false);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const { downloadFieldsTemplate } = await import('@/utils/csvTemplates');
       await downloadFieldsTemplate();
     } catch (error) {
@@ -77,7 +83,7 @@ export default function FieldsScreen() {
   const handleExportData = async () => {
     setShowActionModal(false);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       if (fields.length === 0) {
         Alert.alert('No Data', 'There are no fields to export');

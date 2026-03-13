@@ -29,14 +29,16 @@ import {
   LogOut,
   RefreshCw,
   Tractor,
-  Shield,
   Wifi,
   WifiOff,
+  CreditCard,
+  Crown,
 } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { useFarm } from '@/contexts/FarmContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useRouter } from 'expo-router';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
@@ -44,6 +46,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 export default function SettingsScreen() {
   const { entries, fields, inventory } = useData();
   const farm = useFarm();
+  const { isProUser, grandfathered, restore, isRestoring } = useSubscription();
   const [isExporting, setIsExporting] = useState(false);
   const [logoTapCount, setLogoTapCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,7 +57,7 @@ export default function SettingsScreen() {
     setLogoTapCount(newCount);
     if (newCount >= 7) {
       setLogoTapCount(0);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       router.push('/admin-menu');
     }
   };
@@ -246,8 +249,8 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               await farm.leaveFarm();
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } catch (error) {
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } catch {
               Alert.alert('Error', 'Failed to leave farm');
             }
           },
@@ -260,8 +263,8 @@ export default function SettingsScreen() {
     if (!farm.farmId || farm.isSyncing) return;
     try {
       await farm.performSync();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
       Alert.alert('Sync Error', 'Failed to sync data. Check your connection.');
     }
   };
@@ -331,6 +334,54 @@ export default function SettingsScreen() {
           </View>
         </TouchableOpacity>
         <Text style={styles.appName}>FarmSeed Mapper</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Subscription</Text>
+        <View style={styles.sectionContent}>
+          {isProUser ? (
+            <SettingRow
+              icon={<Crown size={20} color={Colors.accent} />}
+              title="Subscribed"
+              subtitle={grandfathered ? 'Grandfathered — free access' : 'Your subscription is active'}
+              value={grandfathered ? 'Legacy' : 'Active'}
+            />
+          ) : (
+            <>
+              <SettingRow
+                icon={<CreditCard size={20} color={Colors.primary} />}
+                title="Subscribe"
+                subtitle="Unlock all features"
+                onPress={() => router.push('/paywall')}
+              />
+              <SettingRow
+                icon={<RefreshCw size={20} color={Colors.textSecondary} />}
+                title="Restore Purchases"
+                subtitle="Already subscribed? Restore here"
+                onPress={() => {
+                  void restore().then((info) => {
+                    const active = !!info?.entitlements?.active?.['FarmSeed Mapper Pro'];
+                    if (active) {
+                      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      Alert.alert('Restored!', 'Your subscription has been restored.');
+                    } else {
+                      Alert.alert('No Subscription Found', 'We couldn\'t find an active subscription.');
+                    }
+                  }).catch(() => {
+                    Alert.alert('Error', 'Failed to restore purchases.');
+                  });
+                }}
+                rightElement={
+                  isRestoring ? (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  ) : (
+                    <ChevronRight size={18} color={Colors.textLight} />
+                  )
+                }
+              />
+            </>
+          )}
+        </View>
       </View>
 
       <View style={styles.statsCard}>
@@ -415,7 +466,13 @@ export default function SettingsScreen() {
                 icon={<Tractor size={20} color={Colors.primary} />}
                 title="Join or Create Farm"
                 subtitle="Connect to share data with your team"
-                onPress={() => router.push('/farm-setup')}
+                onPress={() => {
+                  if (!isProUser) {
+                    router.push('/paywall');
+                    return;
+                  }
+                  router.push('/farm-setup');
+                }}
               />
             </>
           )}

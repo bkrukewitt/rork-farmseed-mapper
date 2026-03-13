@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Trash2, Check, Layers, MapPin, Ruler, Wheat, Calendar } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 let MapView: any = null;
 let Marker: any = null;
@@ -49,6 +50,7 @@ export default function FieldDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getFieldById, updateField, deleteField, entries } = useData();
+  const { isProUser } = useSubscription();
   
   const field = getFieldById(id || '');
   
@@ -202,7 +204,13 @@ export default function FieldDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Field Details</Text>
-            <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
+            <TouchableOpacity onPress={() => {
+              if (!isEditing && !isProUser) {
+                router.push('/paywall' as never);
+                return;
+              }
+              setIsEditing(!isEditing);
+            }}>
               <Text style={styles.editLink}>{isEditing ? 'Cancel' : 'Edit'}</Text>
             </TouchableOpacity>
           </View>

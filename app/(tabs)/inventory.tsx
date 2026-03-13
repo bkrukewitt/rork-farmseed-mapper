@@ -32,11 +32,13 @@ import {
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { InventoryItem } from '@/types';
 
 export default function InventoryScreen() {
   const router = useRouter();
   const { inventory, inventoryUsage, isLoading, getTotalUsedForItem, getEntryById } = useData();
+  const { isProUser } = useSubscription();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
@@ -80,7 +82,11 @@ export default function InventoryScreen() {
   };
 
   const handleOpenActionModal = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!isProUser) {
+      router.push('/paywall' as never);
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowActionModal(true);
   };
 
@@ -97,7 +103,7 @@ export default function InventoryScreen() {
   const handleDownloadTemplate = async () => {
     setShowActionModal(false);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const { downloadInventoryTemplate } = await import('@/utils/csvTemplates');
       await downloadInventoryTemplate();
     } catch (error) {
@@ -108,7 +114,7 @@ export default function InventoryScreen() {
   const handleExportData = async () => {
     setShowActionModal(false);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       if (inventory.length === 0) {
         Alert.alert('No Data', 'There are no inventory items to export');
@@ -165,7 +171,7 @@ export default function InventoryScreen() {
   };
 
   const handleItemPress = (item: InventoryItem) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/inventory/${item.id}` as any);
   };
 

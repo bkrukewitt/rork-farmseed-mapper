@@ -25,11 +25,13 @@ import {
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 export default function EntryDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getEntryById, deleteEntry } = useData();
+  const { isProUser } = useSubscription();
   
   const entry = getEntryById(id || '');
 
@@ -65,7 +67,7 @@ export default function EntryDetailScreen() {
           style: 'destructive',
           onPress: () => {
             deleteEntry(entry.id);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             router.back();
           },
         },
@@ -85,7 +87,7 @@ export default function EntryDetailScreen() {
   );
 
   const handleGoToMap = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/(tabs)?focusLat=${entry.coordinates.latitude}&focusLng=${entry.coordinates.longitude}&focusId=${entry.id}` as never);
   };
 
@@ -97,7 +99,13 @@ export default function EntryDetailScreen() {
           headerRight: () => (
             <View style={styles.headerButtons}>
               <TouchableOpacity 
-                onPress={() => router.push(`/add-entry?id=${entry.id}` as never)}
+                onPress={() => {
+                  if (!isProUser) {
+                    router.push('/paywall' as never);
+                    return;
+                  }
+                  router.push(`/add-entry?id=${entry.id}` as never);
+                }}
                 style={styles.editButton}
               >
                 <Edit2 size={18} color={Colors.primary} />

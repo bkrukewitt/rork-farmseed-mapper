@@ -73,6 +73,9 @@ export default function OnboardingScreen() {
     setIsLoading(true);
     await setOnboardingComplete();
     router.replace('/(tabs)');
+    setTimeout(() => {
+      router.push('/paywall');
+    }, 500);
   };
 
   return (

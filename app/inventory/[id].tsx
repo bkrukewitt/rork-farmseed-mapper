@@ -23,10 +23,12 @@ import {
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 export default function InventoryDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { isProUser } = useSubscription();
   const {
     getInventoryItemById,
     deleteInventoryItem,
@@ -52,7 +54,11 @@ export default function InventoryDetailScreen() {
   const totalUsed = id ? getTotalUsedForItem(id) : 0;
 
   const handleEdit = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!isProUser) {
+      router.push('/paywall' as never);
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/add-inventory?editId=${id}` as any);
   };
 
@@ -68,7 +74,7 @@ export default function InventoryDetailScreen() {
           onPress: () => {
             if (id) {
               deleteInventoryItem(id);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               router.back();
             }
           },

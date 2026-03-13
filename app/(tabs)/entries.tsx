@@ -13,11 +13,13 @@ import { Image } from 'expo-image';
 import { Search, Plus, MapPin, Calendar, ChevronRight } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData, useFilteredEntries } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { SeedEntry } from '@/types';
 
 export default function EntriesScreen() {
   const router = useRouter();
   useData();
+  const { isProUser } = useSubscription();
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const filteredEntries = useFilteredEntries(search);
@@ -33,6 +35,10 @@ export default function EntriesScreen() {
   };
 
   const handleAddEntry = () => {
+    if (!isProUser) {
+      router.push('/paywall' as never);
+      return;
+    }
     router.push('/add-entry' as never);
   };
 

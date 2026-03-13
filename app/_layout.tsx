@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DataProvider } from "@/contexts/DataContext";
 import { FarmProvider } from "@/contexts/FarmContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Colors from "@/constants/colors";
 import { setOriginalAppVersionIfNeeded } from "@/utils/originalAppVersion";
 import { checkOnboardingComplete, resetOnboarding } from "./onboarding";
@@ -14,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const APP_VERSION = Constants.expoConfig?.version ?? "1.1.0";
 const APP_VERSION_KEY = "farmseed_app_version";
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
@@ -47,10 +48,10 @@ export default function RootLayout() {
         setShowOnboarding(false);
       } finally {
         setIsReady(true);
-        SplashScreen.hideAsync();
+        void SplashScreen.hideAsync();
       }
     }
-    prepare();
+    void prepare();
   }, []);
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function RootLayout() {
         }
       }
     };
-    checkIfCompleted();
+    void checkIfCompleted();
   }, [segments, showOnboarding]);
 
   if (!isReady) {
@@ -89,6 +90,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <SubscriptionProvider>
         <DataProvider>
           <FarmProvider>
           <Stack
@@ -175,9 +177,17 @@ export default function RootLayout() {
                 title: 'Admin',
               }} 
             />
+            <Stack.Screen 
+              name="paywall" 
+              options={{ 
+                presentation: 'modal',
+                headerShown: false,
+              }} 
+            />
           </Stack>
           </FarmProvider>
         </DataProvider>
+        </SubscriptionProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

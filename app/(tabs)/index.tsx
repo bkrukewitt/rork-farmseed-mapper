@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import { Plus, Navigation, Layers, MapPin as MapIcon, Crosshair } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Coordinates } from '@/types';
 
 let MapView: any = null;
@@ -43,6 +44,7 @@ export default function MapScreen() {
   const router = useRouter();
   const { focusLat, focusLng, focusId } = useLocalSearchParams<{ focusLat?: string; focusLng?: string; focusId?: string }>();
   const { entries, isLoading } = useData();
+  const { isProUser } = useSubscription();
   const [location, setLocation] = useState<Coordinates | null>(null);
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('hybrid');
   const [locationLoading, setLocationLoading] = useState(true);
@@ -52,7 +54,7 @@ export default function MapScreen() {
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
   useEffect(() => {
-    requestLocationPermission();
+    void requestLocationPermission();
   }, []);
 
   const requestLocationPermission = async () => {
@@ -145,6 +147,10 @@ export default function MapScreen() {
   };
 
   const handleAddEntry = () => {
+    if (!isProUser) {
+      router.push('/paywall' as never);
+      return;
+    }
     router.push('/add-entry' as never);
   };
 
@@ -171,6 +177,12 @@ export default function MapScreen() {
 
   const confirmSelectedLocation = () => {
     if (selectedLocation) {
+      if (!isProUser) {
+        router.push('/paywall' as never);
+        setPinDropMode(false);
+        setSelectedLocation(null);
+        return;
+      }
       router.push(`/add-entry?lat=${selectedLocation.latitude}&lng=${selectedLocation.longitude}` as never);
       setPinDropMode(false);
       setSelectedLocation(null);

@@ -1,11 +1,12 @@
 -- Run this SQL in your Supabase SQL Editor (Dashboard > SQL Editor > New Query)
 
--- Farms table
+-- Farms table (rows only created when a user explicitly creates a farm)
 CREATE TABLE IF NOT EXISTS farms (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL DEFAULT '',
   password TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_accessed_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Farm members

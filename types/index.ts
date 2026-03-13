@@ -135,6 +135,7 @@ export interface Farm {
   name: string;
   password?: string | null;
   created_at: string;
+  last_accessed_at?: string;
 }
 
 export interface FarmMember {

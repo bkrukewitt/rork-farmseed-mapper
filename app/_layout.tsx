@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Constants from "expo-constants";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
@@ -6,10 +7,11 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DataProvider } from "@/contexts/DataContext";
 import { FarmProvider } from "@/contexts/FarmContext";
 import Colors from "@/constants/colors";
+import { setOriginalAppVersionIfNeeded } from "@/utils/originalAppVersion";
 import { checkOnboardingComplete, resetOnboarding } from "./onboarding";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const APP_VERSION = "1.0.1";
+const APP_VERSION = Constants.expoConfig?.version ?? "1.1.0";
 const APP_VERSION_KEY = "farmseed_app_version";
 
 SplashScreen.preventAutoHideAsync();
@@ -26,15 +28,17 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
+        await setOriginalAppVersionIfNeeded(APP_VERSION);
+
         const storedVersion = await AsyncStorage.getItem(APP_VERSION_KEY);
         const isNewVersion = storedVersion !== APP_VERSION;
-        
+
         if (isNewVersion) {
           console.log('New app version detected:', APP_VERSION);
           await resetOnboarding();
           await AsyncStorage.setItem(APP_VERSION_KEY, APP_VERSION);
         }
-        
+
         const onboardingComplete = await checkOnboardingComplete();
         console.log('Onboarding complete status:', onboardingComplete);
         setShowOnboarding(!onboardingComplete);

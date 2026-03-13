@@ -167,6 +167,11 @@ export const [FarmProvider, useFarm] = createContextHook(() => {
       .insert({ id, name, password: password || null });
     if (farmError) throw farmError;
 
+    await supabase
+      .from('farms')
+      .update({ last_accessed_at: new Date().toISOString() })
+      .eq('id', id);
+
     const devId = deviceId;
     const { error: memberError } = await supabase
       .from('farm_members')
@@ -208,6 +213,11 @@ export const [FarmProvider, useFarm] = createContextHook(() => {
     if (farm.password && farm.password !== (password || '')) {
       throw new Error('Incorrect password');
     }
+
+    await supabase
+      .from('farms')
+      .update({ last_accessed_at: new Date().toISOString() })
+      .eq('id', id);
 
     const devId = deviceId;
     const { error: memberError } = await supabase
@@ -439,6 +449,11 @@ export const [FarmProvider, useFarm] = createContextHook(() => {
       const now = new Date().toISOString();
       setLastSyncAt(now);
       await AsyncStorage.setItem(FARM_KEYS.LAST_SYNC, now);
+
+      await supabase
+        .from('farms')
+        .update({ last_accessed_at: now })
+        .eq('id', fId);
 
       console.log('Sync completed at:', now);
     } catch (error) {

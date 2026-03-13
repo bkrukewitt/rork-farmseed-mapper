@@ -33,10 +33,13 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react-native';
+import Constants from 'expo-constants';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { useFarm } from '@/contexts/FarmContext';
 import { useRouter } from 'expo-router';
+
+const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 
 export default function SettingsScreen() {
   const { entries, fields, inventory } = useData();
@@ -474,6 +477,9 @@ export default function SettingsScreen() {
       <Text style={styles.footer}>
         Made for precision agriculture
       </Text>
+      <Text style={styles.versionFooter}>
+        Version {APP_VERSION}
+      </Text>
     </ScrollView>
   );
 }
@@ -657,6 +663,13 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     fontSize: 13,
     marginTop: 32,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  versionFooter: {
+    textAlign: 'center',
+    color: Colors.textLight,
+    fontSize: 12,
+    marginBottom: 24,
+    opacity: 0.8,
   },
 });

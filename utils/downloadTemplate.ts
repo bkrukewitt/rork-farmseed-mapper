@@ -49,9 +49,9 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
   }
 
   try {
-    // Use same File + Paths API as Fields/Inventory export (expo-file-system v19)
-    const file = new File(Paths.cache, fileName);
-    logDebug('template', `Writing file via File(Paths.cache); uri=${file.uri}`);
+    // Use same File + Paths API as Fields/Inventory export (expo-file-system v19). Use document so share sheet sees a persistent file (matches export).
+    const file = new File(Paths.document, fileName);
+    logDebug('template', `Writing file via File(Paths.document); uri=${file.uri}`);
     file.create({ overwrite: true });
     file.write(content);
 
@@ -59,6 +59,9 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
     logDebug('template', `Sharing.isAvailableAsync -> ${canShare}`);
 
     if (canShare) {
+      // Workaround: brief delay before shareAsync so iOS can present the share sheet (avoids hang / no-op)
+      await new Promise((r) => setTimeout(r, 450));
+      logDebug('template', `Calling shareAsync(uri=${file.uri}, mimeType=${mimeType}, UTI=${uti})`);
       await Sharing.shareAsync(file.uri, {
         mimeType,
         dialogTitle,

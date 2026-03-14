@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { downloadFieldsTemplate } from '@/utils/csvTemplates';
+import { logUserAction } from '@/utils/debugLog';
 import {
   Layers,
   Plus,
@@ -71,6 +72,7 @@ export default function FieldsScreen() {
   };
 
   const handleDownloadTemplate = async () => {
+    logUserAction('Download template (Fields) tapped');
     setShowActionModal(false);
     try {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

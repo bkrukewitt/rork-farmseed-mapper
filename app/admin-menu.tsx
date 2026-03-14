@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Share,
+  Switch,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -27,7 +28,7 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { getLogs, clearLogs } from '@/utils/debugLog';
+import { getLogs, clearLogs, setAdvancedLoggingEnabled, isAdvancedLoggingEnabled } from '@/utils/debugLog';
 import { useFarm } from '@/contexts/FarmContext';
 
 const ADMIN_PIN = '9876';
@@ -44,6 +45,7 @@ export default function AdminMenuScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [deleteFarmIdInput, setDeleteFarmIdInput] = useState('');
   const [logText, setLogText] = useState('');
+  const [advancedLoggingOn, setAdvancedLoggingOn] = useState(false);
 
   const handlePinSubmit = () => {
     if (pin === ADMIN_PIN) {
@@ -70,9 +72,15 @@ export default function AdminMenuScreen() {
 
   useEffect(() => {
     if (accessLevel !== 'locked') {
+      setAdvancedLoggingOn(isAdvancedLoggingEnabled());
       refreshLogs();
     }
   }, [accessLevel]);
+
+  const handleAdvancedLoggingChange = (value: boolean) => {
+    setAdvancedLoggingOn(value);
+    setAdvancedLoggingEnabled(value);
+  };
 
   const handleDeleteFarm = () => {
     const targetId = deleteFarmIdInput.trim().toUpperCase();
@@ -261,6 +269,26 @@ export default function AdminMenuScreen() {
             <Text style={styles.actionText}>Share Debug Info</Text>
             <ChevronRight size={16} color={Colors.textLight} />
           </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Advanced Logging</Text>
+        <View style={styles.sectionCard}>
+          <Text style={styles.advancedLoggingDesc}>
+            Log user actions (taps, navigation) to the log below. Turn on, use the app, then Refresh Logs.
+          </Text>
+          <View style={styles.advancedLoggingRow}>
+            <Text style={styles.advancedLoggingLabel}>
+              Advanced logging: {advancedLoggingOn ? 'On' : 'Off'}
+            </Text>
+            <Switch
+              value={advancedLoggingOn}
+              onValueChange={handleAdvancedLoggingChange}
+              trackColor={{ false: Colors.border, true: Colors.primary + '80' }}
+              thumbColor={advancedLoggingOn ? Colors.primary : Colors.textLight}
+            />
+          </View>
         </View>
       </View>
 
@@ -467,6 +495,27 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: Colors.text,
     lineHeight: 20,
+  },
+  advancedLoggingDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  advancedLoggingRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 16,
+  },
+  advancedLoggingLabel: {
+    fontSize: 15,
+    fontWeight: '500' as const,
+    color: Colors.text,
   },
   logBox: {
     maxHeight: 240,

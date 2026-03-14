@@ -18,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { downloadInventoryTemplate } from '@/utils/csvTemplates';
+import { logUserAction } from '@/utils/debugLog';
 import {
   Package,
   Plus,
@@ -102,6 +103,7 @@ export default function InventoryScreen() {
   };
 
   const handleDownloadTemplate = async () => {
+    logUserAction('Download template (Inventory) tapped');
     setShowActionModal(false);
     try {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

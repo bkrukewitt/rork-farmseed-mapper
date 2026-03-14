@@ -56,6 +56,7 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
         message: content,
         title: shareTitle,
       });
+      logDebug('template', 'Share.share() fallback invoked');
       return;
     }
     const path = `${baseDir}${fileName}`;
@@ -78,6 +79,7 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
         message: content,
         title: shareTitle,
       });
+      logDebug('template', 'Share.share() fallback invoked');
     }
   } catch (error) {
     logDebug('template', `Error in downloadTemplate: ${(error as Error).message}`);

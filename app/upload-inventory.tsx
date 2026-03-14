@@ -18,6 +18,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { downloadInventoryTemplate } from '@/utils/csvTemplates';
+import { logUserAction } from '@/utils/debugLog';
 import {
   FileSpreadsheet,
   Upload,
@@ -417,6 +418,7 @@ export default function UploadInventoryScreen() {
   };
 
   const downloadTemplate = async () => {
+    logUserAction('Download template (Upload Inventory) tapped');
     setIsDownloadingTemplate(true);
     try {
       console.log('[UploadInventory] Starting template download');

@@ -18,6 +18,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { downloadFieldsTemplate } from '@/utils/csvTemplates';
+import { logUserAction } from '@/utils/debugLog';
 import {
   FileSpreadsheet,
   Upload,
@@ -390,6 +391,7 @@ export default function UploadFieldsScreen() {
   };
 
   const downloadTemplate = async () => {
+    logUserAction('Download template (Upload Fields) tapped');
     setIsDownloadingTemplate(true);
     try {
       console.log('[UploadFields] Starting template download');

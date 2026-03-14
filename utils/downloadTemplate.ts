@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Share } from 'react-native';
 import { logDebug } from '@/utils/debugLog';
@@ -20,7 +20,7 @@ export type DownloadTemplateOptions = {
 };
 
 /**
- * Download or share a template file. Web: blob + <a download>. Native: write to cache, open share sheet (or Share.share fallback).
+ * Download or share a template file. Web: blob + <a download>. Native: write to cache via File+Paths (same API as export), then share sheet.
  */
 export async function downloadTemplate(options: DownloadTemplateOptions): Promise<void> {
   const {
@@ -49,25 +49,17 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
   }
 
   try {
-    const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
-    if (!baseDir) {
-      logDebug('template', 'No cache/document directory available; falling back to Share.share');
-      await Share.share({
-        message: content,
-        title: shareTitle,
-      });
-      logDebug('template', 'Share.share() fallback invoked');
-      return;
-    }
-    const path = `${baseDir}${fileName}`;
-    logDebug('template', `Writing file to ${path}`);
-    await FileSystem.writeAsStringAsync(path, content, { encoding: FileSystem.EncodingType.UTF8 });
+    // Use same File + Paths API as Fields/Inventory export (expo-file-system v19)
+    const file = new File(Paths.cache, fileName);
+    logDebug('template', `Writing file via File(Paths.cache); uri=${file.uri}`);
+    file.create({ overwrite: true });
+    file.write(content);
 
     const canShare = await Sharing.isAvailableAsync();
     logDebug('template', `Sharing.isAvailableAsync -> ${canShare}`);
 
     if (canShare) {
-      await Sharing.shareAsync(path, {
+      await Sharing.shareAsync(file.uri, {
         mimeType,
         dialogTitle,
         UTI: uti,
@@ -83,6 +75,13 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
     }
   } catch (error) {
     logDebug('template', `Error in downloadTemplate: ${(error as Error).message}`);
-    throw error;
+    try {
+      logDebug('template', 'Attempting Share.share fallback after error');
+      await Share.share({ message: content, title: shareTitle });
+      logDebug('template', 'Share.share() fallback invoked');
+    } catch (fallbackError) {
+      logDebug('template', `Share.share fallback also failed: ${(fallbackError as Error).message}`);
+      throw error;
+    }
   }
 }

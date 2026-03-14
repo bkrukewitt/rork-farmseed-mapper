@@ -12,6 +12,7 @@ import {
   Pressable,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -193,7 +194,11 @@ export default function InventoryScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Search size={20} color={Colors.textLight} />
@@ -214,6 +219,8 @@ export default function InventoryScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
         }
@@ -398,7 +405,7 @@ export default function InventoryScreen() {
           </View>
         </Pressable>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -435,13 +442,17 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 44,
+    minHeight: 44,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: Colors.text,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+    paddingHorizontal: 8,
+    paddingRight: Platform.OS === 'ios' ? 14 : 8,
+    minHeight: 20,
   },
   addButton: {
     width: 44,

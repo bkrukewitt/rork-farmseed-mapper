@@ -12,6 +12,7 @@ export function isAdvancedLoggingEnabled(): boolean {
 }
 
 export function logDebug(tag: string, message: string): void {
+  if (!advancedLoggingEnabled) return;
   const line = `${new Date().toISOString()} [${tag}] ${message}`;
   logs.push(line);
   if (logs.length > MAX_LOGS) {

@@ -299,12 +299,11 @@ export default function AddEntryScreen() {
   const scrollToInput = (inputName: string) => {
     const yPosition = inputPositions.current[inputName];
     if (yPosition !== undefined && scrollViewRef.current) {
-      // Calculate scroll position: input position - keyboard height - safe area - input field height - padding
-      // On iOS, we need more space for the header/nav bar and safe area
       const safeAreaOffset = Platform.OS === 'ios' ? 120 : 80;
-      const inputHeight = 50; // Approximate input field height
-      const padding = 20; // Extra padding above keyboard
-      const scrollY = Math.max(0, yPosition - (keyboardHeight.current + safeAreaOffset + inputHeight + padding));
+      const inputHeight = 50;
+      const padding = 20;
+      const effectiveKeyboardHeight = keyboardHeight.current > 0 ? keyboardHeight.current : (Platform.OS === 'ios' ? 280 : 250);
+      const scrollY = Math.max(0, yPosition - (effectiveKeyboardHeight + safeAreaOffset + inputHeight + padding));
       
       // Initial scroll
       setTimeout(() => {

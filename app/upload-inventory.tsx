@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { downloadInventoryTemplate } from '@/utils/csvTemplates';
 import { logUserAction } from '@/utils/debugLog';
@@ -97,12 +97,11 @@ export default function UploadInventoryScreen() {
   const scrollToInput = (inputKey: string) => {
     const yPosition = inputPositions.current[inputKey];
     if (yPosition !== undefined && scrollViewRef.current) {
-      // Calculate scroll position: input position - keyboard height - safe area - input field height - padding
-      // On iOS, we need more space for the header/nav bar and safe area
       const safeAreaOffset = Platform.OS === 'ios' ? 120 : 80;
-      const inputHeight = 50; // Approximate input field height
-      const padding = 20; // Extra padding above keyboard
-      const scrollY = Math.max(0, yPosition - (keyboardHeight.current + safeAreaOffset + inputHeight + padding));
+      const inputHeight = 50;
+      const padding = 20;
+      const effectiveKeyboardHeight = keyboardHeight.current > 0 ? keyboardHeight.current : (Platform.OS === 'ios' ? 280 : 250);
+      const scrollY = Math.max(0, yPosition - (effectiveKeyboardHeight + safeAreaOffset + inputHeight + padding));
       
       // Initial scroll
       setTimeout(() => {
@@ -129,6 +128,7 @@ export default function UploadInventoryScreen() {
 
   const pickDocument = async () => {
     try {
+      logUserAction('Upload Inventory: pick file from device');
       abortRef.current = false;
       const result = await DocumentPicker.getDocumentAsync({
         type: [
@@ -147,8 +147,6 @@ export default function UploadInventoryScreen() {
         setParsedData([]);
         setParseErrors([]);
         setShowDropboxInput(false);
-        console.log('File selected:', asset.name);
-        
         await parseFile(asset.uri);
       }
     } catch (error) {
@@ -163,6 +161,7 @@ export default function UploadInventoryScreen() {
       return;
     }
 
+    logUserAction('Upload Inventory: fetch from Dropbox link');
     setIsLoading(true);
     setParsedData([]);
     setParseErrors([]);
@@ -217,14 +216,24 @@ export default function UploadInventoryScreen() {
   const parseFile = async (uri: string) => {
     setIsLoading(true);
     setParseErrors([]);
-    
+
     try {
-      const content = await FileSystem.readAsStringAsync(uri);
-      console.log('File content length:', content.length);
+      let content: string;
+      try {
+        const file = new File(uri);
+        const ab = await file.arrayBuffer();
+        content = new TextDecoder('utf-8').decode(ab);
+      } catch (readErr: unknown) {
+        const msg = readErr instanceof Error ? readErr.message : String(readErr);
+        console.error('File read error:', readErr);
+        setParseErrors([`Failed to read file: ${msg}`]);
+        return;
+      }
       await parseContent(content);
     } catch (error) {
       console.error('Parse error:', error);
-      setParseErrors(['Failed to read or parse file']);
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      setParseErrors([`Failed to parse file: ${msg}`]);
     } finally {
       setIsLoading(false);
     }

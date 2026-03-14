@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   RefreshControl,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -129,7 +131,11 @@ export default function EntriesScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
           <Search size={20} color={Colors.textLight} />
@@ -157,12 +163,14 @@ export default function EntriesScreen() {
           />
         }
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       />
 
       <TouchableOpacity style={styles.fab} onPress={handleAddEntry}>
         <Plus size={26} color={Colors.textInverse} />
       </TouchableOpacity>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -191,6 +199,10 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
     color: Colors.text,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    paddingHorizontal: 8,
+    paddingRight: Platform.OS === 'ios' ? 14 : 8,
+    minHeight: 20,
   },
   listContent: {
     padding: 16,

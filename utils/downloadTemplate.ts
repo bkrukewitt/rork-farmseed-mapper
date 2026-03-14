@@ -1,4 +1,5 @@
 import { Platform, Share } from 'react-native';
+import RNShare from 'react-native-share';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { logDebug } from '@/utils/debugLog';
@@ -54,16 +55,33 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
     file.create({ overwrite: true });
     file.write(content);
 
-    // On iOS, use React Native Share with file URL first (expo-sharing shareAsync often fails to show sheet in sim/TestFlight)
+    // On iOS, use react-native-share (reliable file share sheet); fallback to RN Share if it fails
     if (Platform.OS === 'ios') {
       await new Promise((r) => setTimeout(r, 300));
-      logDebug('template', `Calling Share.share({ url: ${file.uri}, title: ${dialogTitle} })`);
-      await Share.share({
-        url: file.uri,
-        title: dialogTitle,
-        message: undefined,
-      });
-      logDebug('template', 'Share.share (file url) completed');
+      logDebug('template', `[iOS] Calling react-native-share Share.open({ url: ${file.uri}, title: ${dialogTitle} })`);
+      try {
+        await RNShare.open({
+          url: file.uri,
+          title: dialogTitle,
+          type: mimeType,
+          filename: fileName,
+        });
+        logDebug('template', '[iOS] react-native-share Share.open completed');
+      } catch (rnShareError: unknown) {
+        const err = rnShareError as { message?: string };
+        const msg = err?.message ?? String(rnShareError);
+        logDebug('template', `[iOS] react-native-share: ${msg}`);
+        // User dismissed sheet or cancelled — don't show fallback
+        if (/cancel|dismiss|user/i.test(msg)) {
+          return;
+        }
+        logDebug('template', '[iOS] Fallback to RN Share.share with file url');
+        await Share.share({
+          url: file.uri,
+          title: dialogTitle,
+        });
+        logDebug('template', '[iOS] Share.share (file url) completed');
+      }
       return;
     }
 

@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   Share,
   Switch,
+  AppState,
+  type AppStateStatus,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -37,12 +39,15 @@ const DEBUG_PIN = '1111';
 
 type AccessLevel = 'locked' | 'debug' | 'admin';
 
+// Persist access level until app goes to background so user doesn't re-enter PIN on every visit.
+let sessionAccessLevel: AccessLevel = 'locked';
+
 export default function AdminMenuScreen() {
   const router = useRouter();
   const farm = useFarm();
 
   const [pin, setPin] = useState('');
-  const [accessLevel, setAccessLevel] = useState<AccessLevel>('locked');
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>(() => sessionAccessLevel);
   const [isProcessing, setIsProcessing] = useState(false);
   const [deleteFarmIdInput, setDeleteFarmIdInput] = useState('');
   const [logText, setLogText] = useState('');
@@ -50,9 +55,11 @@ export default function AdminMenuScreen() {
 
   const handlePinSubmit = () => {
     if (pin === ADMIN_PIN) {
+      sessionAccessLevel = 'admin';
       setAccessLevel('admin');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else if (pin === DEBUG_PIN) {
+      sessionAccessLevel = 'debug';
       setAccessLevel('debug');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } else {
@@ -92,6 +99,17 @@ export default function AdminMenuScreen() {
       refreshLogs();
     }
   }, [accessLevel]);
+
+  // Lock again when app goes to background so PIN is required after returning (not on 'inactive' — that would lock when share sheet opens)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'background') {
+        sessionAccessLevel = 'locked';
+        setAccessLevel('locked');
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   const handleAdvancedLoggingChange = (value: boolean) => {
     setAdvancedLoggingOn(value);

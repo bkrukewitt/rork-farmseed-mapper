@@ -1,7 +1,6 @@
-import { Platform } from 'react-native';
+import { Platform, Share } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { Share } from 'react-native';
 import { logDebug } from '@/utils/debugLog';
 
 export type DownloadTemplateOptions = {
@@ -55,13 +54,25 @@ export async function downloadTemplate(options: DownloadTemplateOptions): Promis
     file.create({ overwrite: true });
     file.write(content);
 
+    // On iOS, use React Native Share with file URL first (expo-sharing shareAsync often fails to show sheet in sim/TestFlight)
+    if (Platform.OS === 'ios') {
+      await new Promise((r) => setTimeout(r, 300));
+      logDebug('template', `Calling Share.share({ url: ${file.uri}, title: ${dialogTitle} })`);
+      await Share.share({
+        url: file.uri,
+        title: dialogTitle,
+        message: undefined,
+      });
+      logDebug('template', 'Share.share (file url) completed');
+      return;
+    }
+
     const canShare = await Sharing.isAvailableAsync();
     logDebug('template', `Sharing.isAvailableAsync -> ${canShare}`);
 
     if (canShare) {
-      // Workaround: brief delay before shareAsync so iOS can present the share sheet (avoids hang / no-op)
-      await new Promise((r) => setTimeout(r, 450));
-      logDebug('template', `Calling shareAsync(uri=${file.uri}, mimeType=${mimeType}, UTI=${uti})`);
+      await new Promise((r) => setTimeout(r, 300));
+      logDebug('template', `Calling shareAsync(uri=${file.uri})`);
       await Sharing.shareAsync(file.uri, {
         mimeType,
         dialogTitle,

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import {
   Shield,
   Trash2,
@@ -68,6 +69,21 @@ export default function AdminMenuScreen() {
   const handleClearLogs = () => {
     clearLogs();
     setLogText('');
+  };
+
+  const handleCopyLogs = async () => {
+    const text = logText || getLogs();
+    if (!text.trim()) {
+      Alert.alert('No logs', 'Nothing to copy. Trigger some actions with Advanced Logging on, then Refresh Logs.');
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(text);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Copied', 'Entire log copied to clipboard. You can paste it anywhere.');
+    } catch (e) {
+      Alert.alert('Copy failed', (e as Error).message);
+    }
   };
 
   useEffect(() => {
@@ -305,6 +321,12 @@ export default function AdminMenuScreen() {
           <View style={styles.logButtonsRow}>
             <TouchableOpacity style={styles.logButton} onPress={refreshLogs}>
               <Text style={styles.logButtonText}>Refresh Logs</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.logButton, styles.logButtonSecondary]} onPress={handleCopyLogs}>
+              <View style={styles.logButtonContentRow}>
+                <Copy size={16} color={Colors.primary} />
+                <Text style={styles.logButtonSecondaryText}>Copy log</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.logButton, styles.logButtonSecondary]} onPress={handleClearLogs}>
               <Text style={styles.logButtonSecondaryText}>Clear</Text>
@@ -559,6 +581,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500' as const,
     color: Colors.textSecondary,
+  },
+  logButtonContentRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
   },
   actionRow: {
     flexDirection: 'row' as const,

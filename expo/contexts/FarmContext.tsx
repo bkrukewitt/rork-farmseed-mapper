@@ -546,6 +546,20 @@ export const [FarmProvider, useFarm] = createContextHook(() => {
     console.log('Purged local and resynced from server');
   }, []);
 
+  /** Admin only: delete all farm_data for this farm (server + local). All members lose data. */
+  const clearAllFarmDataForFarm = useCallback(async () => {
+    if (!isAdmin || !farmIdRef.current) return;
+    const fId = farmIdRef.current;
+    const { error } = await supabase
+      .from('farm_data')
+      .delete()
+      .eq('farm_id', fId);
+    if (error) throw error;
+    await data.replaceAllData([], [], [], []);
+    await data.clearPendingDeletes();
+    console.log('Cleared all farm data for farm:', fId);
+  }, [isAdmin]);
+
   const getDebugInfo = useCallback(() => {
     return {
       farmId: farmIdRef.current,
@@ -586,6 +600,7 @@ export const [FarmProvider, useFarm] = createContextHook(() => {
     deleteFarmById,
     forceDeleteAllInventory,
     purgeLocalAndResync,
+    clearAllFarmDataForFarm,
     getDebugInfo,
     refreshMembers,
   };

@@ -45,7 +45,7 @@ import { useRouter } from 'expo-router';
 const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
 
 export default function SettingsScreen() {
-  const { entries, fields, inventory } = useData();
+  const { entries, fields, inventory, replaceAllData, clearPendingDeletes } = useData();
   const farm = useFarm();
   const { isProUser, grandfathered, restore, isRestoring, expirationDate, willRenew, productIdentifier, hasEntitlement } = useSubscription();
   const { demoActive, scansRemaining, exitDemo } = useDemo();
@@ -213,22 +213,62 @@ export default function SettingsScreen() {
     }
   };
 
+  const clearDeviceData = async () => {
+    await replaceAllData([], [], [], []);
+    await clearPendingDeletes();
+  };
+
   const handleClearData = () => {
+    if (farm.farmId && farm.isAdmin) {
+      Alert.alert(
+        'Clear All Data',
+        'What do you want to clear?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'This device only',
+            onPress: async () => {
+              try {
+                await clearDeviceData();
+                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert('Done', 'All data on this device has been cleared.');
+              } catch (error) {
+                console.error('Clear data error:', error);
+                Alert.alert('Error', 'Failed to clear data');
+              }
+            },
+          },
+          {
+            text: 'Entire farm (all members)',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await farm.clearAllFarmDataForFarm();
+                void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert('Done', 'All data for the farm has been cleared on the server and on this device.');
+              } catch (error) {
+                console.error('Clear farm data error:', error);
+                Alert.alert('Error', 'Failed to clear farm data');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
     Alert.alert(
       'Clear All Data',
-      'This will permanently delete all seed entries and fields. This action cannot be undone.',
+      'This will permanently delete all entries, fields, and inventory on this device. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete All',
+          text: 'Clear all',
           style: 'destructive',
           onPress: async () => {
             try {
-              await AsyncStorage.multiRemove([
-                'farmseed_entries',
-                'farmseed_fields',
-              ]);
-              Alert.alert('Success', 'All data has been cleared. Restart the app to see changes.');
+              await clearDeviceData();
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Done', 'All data on this device has been cleared.');
             } catch (error) {
               console.error('Clear data error:', error);
               Alert.alert('Error', 'Failed to clear data');
@@ -242,18 +282,32 @@ export default function SettingsScreen() {
   const handleLeaveFarm = () => {
     Alert.alert(
       'Leave Farm',
-      'You will be disconnected from the farm. Your local data will remain but will no longer sync.',
+      'Do you want to clear all data on this device as well?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Leave',
-          style: 'destructive',
+          text: 'Leave only',
           onPress: async () => {
             try {
               await farm.leaveFarm();
               void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Done', 'You have left the farm. Local data was kept.');
             } catch {
               Alert.alert('Error', 'Failed to leave farm');
+            }
+          },
+        },
+        {
+          text: 'Leave and clear data',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearDeviceData();
+              await farm.leaveFarm();
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Done', 'You have left the farm and all data on this device has been cleared.');
+            } catch {
+              Alert.alert('Error', 'Failed to leave farm or clear data');
             }
           },
         },

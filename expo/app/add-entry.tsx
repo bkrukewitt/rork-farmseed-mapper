@@ -31,6 +31,8 @@ import {
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { Coordinates, PRODUCER_OPTIONS, TRAIT_OPTIONS, TREATMENT_OPTIONS, InventoryItem, Field } from '@/types';
 import { getAndClearSeedTagScanResult } from '@/utils/seedTagScanResult';
 import { parseSeedTagQR } from '@/utils/parseSeedTagQR';
@@ -40,6 +42,21 @@ export default function AddEntryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ lat?: string; lng?: string; id?: string }>();
   const { addEntry, updateEntry, getEntryById, inventory, consumeInventory, fields } = useData();
+  const { isProUser } = useSubscription();
+  const { demoActive, canScan, consumeScan } = useDemo();
+
+  const gateScan = (): boolean => {
+    if (isProUser) return true;
+    if (demoActive && canScan) {
+      void consumeScan();
+      return true;
+    }
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push('/paywall' as never);
+    return false;
+  };
   
   const existingEntry = params.id ? getEntryById(params.id) : null;
   const isEditMode = !!existingEntry;
@@ -237,10 +254,12 @@ export default function AddEntryScreen() {
   };
 
   const handleScanSeedTagQR = () => {
+    if (!gateScan()) return;
     router.push('/scan-seed-qr');
   };
 
   const handleScanFromPhoto = async () => {
+    if (!gateScan()) return;
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {

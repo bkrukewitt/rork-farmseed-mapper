@@ -21,10 +21,12 @@ import {
   Check,
   Shield,
   Sparkles,
+  PlayCircle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 type PlanType = 'monthly' | 'annual';
 
@@ -40,7 +42,18 @@ export default function PaywallScreen() {
     isProUser,
   } = useSubscription();
 
+  const { demoActive, startDemo } = useDemo();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('annual');
+
+  const handleTryDemo = async () => {
+    if (Platform.OS !== 'web') {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    if (!demoActive) {
+      await startDemo();
+    }
+    router.replace('/(tabs)');
+  };
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -302,6 +315,20 @@ export default function PaywallScreen() {
                 {selectedPlan === 'annual' ? `Subscribe — ${annualPrice}/yr` : `Subscribe — ${monthlyPrice}/mo`}
               </Text>
             )}
+          </TouchableOpacity>
+
+          <Text style={styles.demoHelper}>
+            Just browsing? Try the demo — 1 free seed scan, no account needed.
+          </Text>
+          <TouchableOpacity
+            style={styles.demoButton}
+            onPress={handleTryDemo}
+            disabled={isPurchasing || isRestoring}
+            activeOpacity={0.85}
+            testID="paywall-try-demo"
+          >
+            <PlayCircle size={18} color={Colors.primaryDark} />
+            <Text style={styles.demoButtonText}>Try Demo</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -588,5 +615,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontWeight: '500' as const,
+  },
+  demoHelper: {
+    fontSize: 12,
+    color: Colors.textLight,
+    textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 8,
+    lineHeight: 16,
+  },
+  demoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    paddingVertical: 13,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: Colors.primary + '55',
+  },
+  demoButtonText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.primaryDark,
+    letterSpacing: 0.2,
   },
 });

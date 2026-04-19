@@ -15,6 +15,7 @@ import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { Coordinates } from '@/types';
+import DemoBanner from '@/components/DemoBanner';
 
 let MapView: any = null;
 let Marker: any = null;
@@ -224,6 +225,9 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.demoBannerWrap} pointerEvents="box-none">
+        <DemoBanner />
+      </View>
       {Platform.OS === 'web' ? (
         <View style={styles.webMapPlaceholder}>
           <MapIcon size={64} color={Colors.textLight} />
@@ -371,6 +375,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  demoBannerWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
   },
   loadingContainer: {
     flex: 1,

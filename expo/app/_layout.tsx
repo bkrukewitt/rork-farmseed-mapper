@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { DataProvider } from "@/contexts/DataContext";
 import { FarmProvider } from "@/contexts/FarmContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { DemoProvider } from "@/contexts/DemoContext";
 import Colors from "@/constants/colors";
 import { setOriginalAppVersionIfNeeded } from "@/utils/originalAppVersion";
 import { checkOnboardingComplete, resetOnboarding } from "./onboarding";
@@ -91,6 +92,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SubscriptionProvider>
+        <DemoProvider>
         <DataProvider>
           <FarmProvider>
           <Stack
@@ -187,6 +189,7 @@ export default function RootLayout() {
           </Stack>
           </FarmProvider>
         </DataProvider>
+        </DemoProvider>
         </SubscriptionProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

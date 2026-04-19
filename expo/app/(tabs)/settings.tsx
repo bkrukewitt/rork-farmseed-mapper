@@ -39,6 +39,7 @@ import Colors from '@/constants/colors';
 import { useData } from '@/contexts/DataContext';
 import { useFarm } from '@/contexts/FarmContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useRouter } from 'expo-router';
 
 const APP_VERSION = Constants.expoConfig?.version ?? '1.1.0';
@@ -47,6 +48,7 @@ export default function SettingsScreen() {
   const { entries, fields, inventory } = useData();
   const farm = useFarm();
   const { isProUser, grandfathered, restore, isRestoring, expirationDate, willRenew, productIdentifier, hasEntitlement } = useSubscription();
+  const { demoActive, scansRemaining, exitDemo } = useDemo();
   const [isExporting, setIsExporting] = useState(false);
   const [logoTapCount, setLogoTapCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -384,12 +386,43 @@ export default function SettingsScreen() {
             </>
           ) : (
             <>
+              {demoActive && (
+                <View style={styles.subBanner}>
+                  <View style={styles.subBannerRow}>
+                    <Crown size={18} color={Colors.accent} />
+                    <Text style={styles.subBannerTitle}>Demo Mode</Text>
+                  </View>
+                  <Text style={styles.subBannerStatus}>
+                    {scansRemaining > 0
+                      ? `${scansRemaining} free scan${scansRemaining === 1 ? '' : 's'} remaining`
+                      : 'Demo scan used — subscribe to continue'}
+                  </Text>
+                </View>
+              )}
               <SettingRow
                 icon={<CreditCard size={20} color={Colors.primary} />}
                 title="Subscribe"
                 subtitle="Unlock all features"
                 onPress={() => router.push('/paywall')}
               />
+              {demoActive && (
+                <SettingRow
+                  icon={<LogOut size={20} color={Colors.error} />}
+                  title="Exit Demo"
+                  subtitle="Leave demo mode"
+                  onPress={() => {
+                    Alert.alert(
+                      'Exit Demo?',
+                      'This will end the demo. You can start it again later from the paywall.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Exit Demo', style: 'destructive', onPress: () => { void exitDemo(); } },
+                      ]
+                    );
+                  }}
+                  destructive
+                />
+              )}
               <SettingRow
                 icon={<RefreshCw size={20} color={Colors.textSecondary} />}
                 title="Restore Purchases"

@@ -29,6 +29,7 @@ import {
   Eye,
   Copy,
   ChevronRight,
+  CreditCard,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { getLogs, clearLogs, setAdvancedLoggingEnabled, isAdvancedLoggingEnabled } from '@/utils/debugLog';
@@ -355,6 +356,27 @@ export default function AdminMenuScreen() {
 
       {accessLevel === 'admin' && (
         <>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Subscriptions</Text>
+            <View style={styles.sectionCard}>
+              <TouchableOpacity
+                style={styles.actionRow}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  router.push('/paywall');
+                }}
+                activeOpacity={0.7}
+                testID="admin-show-paywall"
+              >
+                <View style={styles.actionIcon}>
+                  <CreditCard size={18} color={Colors.info} />
+                </View>
+                <Text style={styles.actionText}>Show Paywall</Text>
+                <ChevronRight size={16} color={Colors.textLight} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Farm Management</Text>
             <View style={styles.sectionCard}>

@@ -72,10 +72,8 @@ export default function OnboardingScreen() {
   const handleContinue = async () => {
     setIsLoading(true);
     await setOnboardingComplete();
-    router.replace('/(tabs)');
-    setTimeout(() => {
-      router.push('/paywall');
-    }, 500);
+    console.log('[Onboarding] Complete — routing to paywall');
+    router.replace('/paywall');
   };
 
   return (

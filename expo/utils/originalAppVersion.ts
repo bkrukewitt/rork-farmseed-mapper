@@ -16,12 +16,21 @@ export async function getOriginalAppVersion(): Promise<string | null> {
 }
 
 /**
- * Sets originalAppVersion only if it has never been set.
- * Call once at app launch so existing/paid users get grandfathered.
+ * Sets originalAppVersion only if it has never been set AND the user was already
+ * using the app before subscriptions (detected via prior onboarding completion).
+ * This prevents brand-new installs from being grandfathered past the paywall.
  */
 export async function setOriginalAppVersionIfNeeded(currentVersion: string): Promise<void> {
   const existing = await AsyncStorage.getItem(ORIGINAL_APP_VERSION_KEY);
   if (existing != null && existing !== '') return;
+
+  const priorOnboarding = await AsyncStorage.getItem('onboarding_complete');
+  const isExistingUser = priorOnboarding === 'true';
+  if (!isExistingUser) {
+    console.log('[Grandfather] New install detected — not grandfathering.');
+    return;
+  }
+  console.log('[Grandfather] Existing user detected — grandfathering to', currentVersion);
   await AsyncStorage.setItem(ORIGINAL_APP_VERSION_KEY, currentVersion);
 }
 

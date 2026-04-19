@@ -76,7 +76,7 @@ export default function PaywallScreen() {
     try {
       await purchase(pkg);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.back();
+      router.replace('/(tabs)');
     } catch (err: any) {
       if (!err?.userCancelled) {
         Alert.alert('Purchase Failed', err?.message ?? 'Something went wrong. Please try again.');
@@ -91,7 +91,7 @@ export default function PaywallScreen() {
       if (hasActive) {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert('Restored!', 'Your subscription has been restored.', [
-          { text: 'OK', onPress: () => router.back() },
+          { text: 'OK', onPress: () => router.replace('/(tabs)') },
         ]);
       } else {
         Alert.alert('No Subscription Found', 'We couldn\'t find an active subscription for this account.');
@@ -103,12 +103,16 @@ export default function PaywallScreen() {
 
   const handleDismiss = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   useEffect(() => {
     if (isProUser) {
-      router.back();
+      router.replace('/(tabs)');
     }
   }, [isProUser, router]);
 

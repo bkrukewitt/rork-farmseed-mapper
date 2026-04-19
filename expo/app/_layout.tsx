@@ -91,6 +91,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SubscriptionProvider>
+        <SubscriptionGate />
         <DataProvider>
           <FarmProvider>
           <Stack
@@ -180,8 +181,8 @@ export default function RootLayout() {
             <Stack.Screen 
               name="paywall" 
               options={{ 
-                presentation: 'modal',
                 headerShown: false,
+                gestureEnabled: false,
               }} 
             />
           </Stack>

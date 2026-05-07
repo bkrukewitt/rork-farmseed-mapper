@@ -10,7 +10,7 @@ import {
   Platform,
   Animated,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   X,
@@ -22,6 +22,7 @@ import {
   Shield,
   Sparkles,
   PlayCircle,
+  AlertTriangle,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -32,6 +33,10 @@ type PlanType = 'monthly' | 'annual';
 
 export default function PaywallScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ forcePreview?: string | string[] }>();
+  const forcePreview = Array.isArray(params.forcePreview)
+    ? params.forcePreview[0] === '1'
+    : params.forcePreview === '1';
   const {
     monthlyPackage,
     annualPackage,
@@ -40,7 +45,35 @@ export default function PaywallScreen() {
     isPurchasing,
     isRestoring,
     isProUser,
+    rcConfigured,
+    offeringsError,
+    isOfferingsPending,
+    isOfferingsFetching,
+    refreshOfferings,
+    noPurchasePlansAvailable,
   } = useSubscription();
+
+  const nativeRcMissing = !rcConfigured && Platform.OS !== 'web';
+  const showPlanCards =
+    rcConfigured &&
+    !isOfferingsPending &&
+    !offeringsError &&
+    !noPurchasePlansAvailable &&
+    !!(monthlyPackage || annualPackage);
+
+  const plansErrorMessage = offeringsError
+    ? (offeringsError.message || 'Could not load subscription plans.')
+    : 'Subscription plans are temporarily unavailable. Please check your connection and try again.';
+
+  const showPlansError =
+    rcConfigured &&
+    !isOfferingsPending &&
+    !!(offeringsError ?? noPurchasePlansAvailable);
+
+  const handleRetryOfferings = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    refreshOfferings();
+  };
 
   const { demoActive, startDemo } = useDemo();
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('annual');
@@ -124,23 +157,41 @@ export default function PaywallScreen() {
   };
 
   useEffect(() => {
-    if (isProUser) {
+    if (isProUser && !forcePreview) {
       router.replace('/(tabs)');
     }
-  }, [isProUser, router]);
+  }, [isProUser, forcePreview, router]);
 
-  if (isProUser) {
+  useEffect(() => {
+    if (!annualPackage && monthlyPackage) {
+      setSelectedPlan('monthly');
+    }
+    if (!monthlyPackage && annualPackage) {
+      setSelectedPlan('annual');
+    }
+  }, [annualPackage, monthlyPackage]);
+
+  if (isProUser && !forcePreview) {
     return null;
   }
 
-  const monthlyPrice = monthlyPackage?.product?.priceString ?? '$4.99';
-  const annualPrice = annualPackage?.product?.priceString ?? '$39.99';
-  const monthlyRaw = monthlyPackage?.product?.price ?? 4.99;
-  const annualRaw = annualPackage?.product?.price ?? 39.99;
-  const annualMonthly = (annualRaw / 12).toFixed(2);
-  const savingsPercent = monthlyRaw > 0
-    ? Math.round(((monthlyRaw * 12 - annualRaw) / (monthlyRaw * 12)) * 100)
-    : 33;
+  const monthlyPrice = monthlyPackage?.product?.priceString ?? '';
+  const annualPrice = annualPackage?.product?.priceString ?? '';
+  const monthlyRaw = monthlyPackage?.product?.price ?? 0;
+  const annualRaw = annualPackage?.product?.price ?? 0;
+  const annualMonthly =
+    annualRaw > 0 ? (annualRaw / 12).toFixed(2) : '—';
+  const savingsPercent =
+    monthlyRaw > 0 && annualRaw > 0
+      ? Math.round(((monthlyRaw * 12 - annualRaw) / (monthlyRaw * 12)) * 100)
+      : 0;
+
+  const subscribeDisabled =
+    isPurchasing ||
+    isRestoring ||
+    nativeRcMissing ||
+    isOfferingsPending ||
+    (showPlansError && isOfferingsFetching);
 
   return (
     <View style={styles.root}>
@@ -148,9 +199,16 @@ export default function PaywallScreen() {
         <SafeAreaView edges={['top']}>
           <View style={styles.topBarInner}>
             <View style={{ width: 36 }} />
-            <View style={styles.topBadge}>
-              <Sparkles size={14} color={Colors.accent} />
-              <Text style={styles.topBadgeText}>PREMIUM</Text>
+            <View style={styles.topBadgeRow}>
+              <View style={styles.topBadge}>
+                <Sparkles size={14} color={Colors.accent} />
+                <Text style={styles.topBadgeText}>PREMIUM</Text>
+              </View>
+              {forcePreview ? (
+                <View style={styles.adminPreviewBadge} testID="paywall-admin-preview-badge">
+                  <Text style={styles.adminPreviewBadgeText}>ADMIN PREVIEW</Text>
+                </View>
+              ) : null}
             </View>
             <TouchableOpacity
               style={styles.closeButton}
@@ -207,109 +265,166 @@ export default function PaywallScreen() {
         </Animated.View>
 
         <Animated.View style={[styles.plansSection, { opacity: fadeAnim }]}>
-          <TouchableOpacity
-            style={[
-              styles.planCard,
-              selectedPlan === 'annual' && styles.planCardSelected,
-            ]}
-            onPress={() => {
-              setSelectedPlan('annual');
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            activeOpacity={0.8}
-            testID="plan-annual"
-          >
-            {savingsPercent > 0 && (
-              <View style={styles.savingsBadge}>
-                <Text style={styles.savingsText}>SAVE {savingsPercent}%</Text>
-              </View>
-            )}
-            <View style={styles.planHeader}>
-              <View style={[
-                styles.planRadio,
-                selectedPlan === 'annual' && styles.planRadioSelected,
-              ]}>
-                {selectedPlan === 'annual' && (
-                  <Check size={14} color="#fff" strokeWidth={3} />
-                )}
-              </View>
-              <View style={styles.planInfo}>
-                <Text style={[
-                  styles.planTitle,
-                  selectedPlan === 'annual' && styles.planTitleSelected,
-                ]}>Annual</Text>
-                <Text style={styles.planBreakdown}>
-                  ${annualMonthly}/mo — best value
-                </Text>
-              </View>
-              <View style={styles.planPriceCol}>
-                <Text style={[
-                  styles.planPrice,
-                  selectedPlan === 'annual' && styles.planPriceSelected,
-                ]}>{annualPrice}</Text>
-                <Text style={styles.planPeriod}>per year</Text>
-              </View>
+          {nativeRcMissing ? (
+            <View style={styles.plansErrorCard} testID="paywall-rc-missing">
+              <AlertTriangle size={22} color={Colors.error} />
+              <Text style={styles.plansErrorTitle}>Subscriptions unavailable</Text>
+              <Text style={styles.plansErrorBody}>
+                This build could not load the subscription store. Please install the latest version from the App Store or contact support if the problem continues.
+              </Text>
             </View>
-          </TouchableOpacity>
+          ) : isOfferingsPending ? (
+            <View style={styles.plansLoading} testID="paywall-plans-loading">
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.plansLoadingText}>Loading subscription options…</Text>
+            </View>
+          ) : showPlansError ? (
+            <View style={styles.plansErrorCard} testID="paywall-plans-error">
+              <AlertTriangle size={22} color={Colors.warning} />
+              <Text style={styles.plansErrorTitle}>Plans unavailable</Text>
+              <Text style={styles.plansErrorBody}>{plansErrorMessage}</Text>
+              <TouchableOpacity
+                style={[styles.retryOfferingsButton, isOfferingsFetching && styles.retryOfferingsButtonDisabled]}
+                onPress={handleRetryOfferings}
+                disabled={isOfferingsFetching}
+                activeOpacity={0.85}
+                testID="paywall-retry-offerings"
+              >
+                {isOfferingsFetching ? (
+                  <ActivityIndicator color={Colors.textInverse} size="small" />
+                ) : (
+                  <>
+                    <RefreshCw size={18} color={Colors.textInverse} />
+                    <Text style={styles.retryOfferingsText}>Retry</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={[
+                  styles.planCard,
+                  selectedPlan === 'annual' && styles.planCardSelected,
+                ]}
+                onPress={() => {
+                  setSelectedPlan('annual');
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                activeOpacity={0.8}
+                testID="plan-annual"
+              >
+                {savingsPercent > 0 && (
+                  <View style={styles.savingsBadge}>
+                    <Text style={styles.savingsText}>SAVE {savingsPercent}%</Text>
+                  </View>
+                )}
+                <View style={styles.planHeader}>
+                  <View style={[
+                    styles.planRadio,
+                    selectedPlan === 'annual' && styles.planRadioSelected,
+                  ]}>
+                    {selectedPlan === 'annual' && (
+                      <Check size={14} color="#fff" strokeWidth={3} />
+                    )}
+                  </View>
+                  <View style={styles.planInfo}>
+                    <Text style={[
+                      styles.planTitle,
+                      selectedPlan === 'annual' && styles.planTitleSelected,
+                    ]}>Annual</Text>
+                    <Text style={styles.planBreakdown}>
+                      ${annualMonthly}/mo — best value
+                    </Text>
+                  </View>
+                  <View style={styles.planPriceCol}>
+                    <Text style={[
+                      styles.planPrice,
+                      selectedPlan === 'annual' && styles.planPriceSelected,
+                    ]}>{annualPrice}</Text>
+                    <Text style={styles.planPeriod}>per year</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.planCard,
-              selectedPlan === 'monthly' && styles.planCardSelected,
-            ]}
-            onPress={() => {
-              setSelectedPlan('monthly');
-              void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            activeOpacity={0.8}
-            testID="plan-monthly"
-          >
-            <View style={styles.planHeader}>
-              <View style={[
-                styles.planRadio,
-                selectedPlan === 'monthly' && styles.planRadioSelected,
-              ]}>
-                {selectedPlan === 'monthly' && (
-                  <Check size={14} color="#fff" strokeWidth={3} />
-                )}
-              </View>
-              <View style={styles.planInfo}>
-                <Text style={[
-                  styles.planTitle,
-                  selectedPlan === 'monthly' && styles.planTitleSelected,
-                ]}>Monthly</Text>
-                <Text style={styles.planBreakdown}>Cancel anytime</Text>
-              </View>
-              <View style={styles.planPriceCol}>
-                <Text style={[
-                  styles.planPrice,
-                  selectedPlan === 'monthly' && styles.planPriceSelected,
-                ]}>{monthlyPrice}</Text>
-                <Text style={styles.planPeriod}>per month</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.planCard,
+                  selectedPlan === 'monthly' && styles.planCardSelected,
+                ]}
+                onPress={() => {
+                  setSelectedPlan('monthly');
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                activeOpacity={0.8}
+                testID="plan-monthly"
+              >
+                <View style={styles.planHeader}>
+                  <View style={[
+                    styles.planRadio,
+                    selectedPlan === 'monthly' && styles.planRadioSelected,
+                  ]}>
+                    {selectedPlan === 'monthly' && (
+                      <Check size={14} color="#fff" strokeWidth={3} />
+                    )}
+                  </View>
+                  <View style={styles.planInfo}>
+                    <Text style={[
+                      styles.planTitle,
+                      selectedPlan === 'monthly' && styles.planTitleSelected,
+                    ]}>Monthly</Text>
+                    <Text style={styles.planBreakdown}>Cancel anytime</Text>
+                  </View>
+                  <View style={styles.planPriceCol}>
+                    <Text style={[
+                      styles.planPrice,
+                      selectedPlan === 'monthly' && styles.planPriceSelected,
+                    ]}>{monthlyPrice}</Text>
+                    <Text style={styles.planPeriod}>per month</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
         </Animated.View>
 
-        <View style={styles.trustRow}>
-          <Shield size={14} color={Colors.textLight} />
-          <Text style={styles.trustText}>
-            Cancel anytime. Secure payment via {Platform.OS === 'ios' ? 'App Store' : Platform.OS === 'android' ? 'Google Play' : 'your store'}.
-          </Text>
-        </View>
+        {showPlanCards ? (
+          <View style={styles.trustRow}>
+            <Shield size={14} color={Colors.textLight} />
+            <Text style={styles.trustText}>
+              Cancel anytime. Secure payment via {Platform.OS === 'ios' ? 'App Store' : Platform.OS === 'android' ? 'Google Play' : 'your store'}.
+            </Text>
+          </View>
+        ) : null}
       </ScrollView>
 
       <SafeAreaView style={styles.bottomSafe} edges={['bottom']}>
         <View style={styles.bottomSection}>
           <TouchableOpacity
-            style={[styles.subscribeButton, (isPurchasing || isRestoring) && styles.subscribeButtonDisabled]}
-            onPress={handlePurchase}
-            disabled={isPurchasing || isRestoring}
+            style={[styles.subscribeButton, subscribeDisabled && styles.subscribeButtonDisabled]}
+            onPress={() => {
+              if (showPlansError) {
+                handleRetryOfferings();
+              } else if (showPlanCards) {
+                void handlePurchase();
+              }
+            }}
+            disabled={subscribeDisabled}
             activeOpacity={0.85}
             testID="paywall-subscribe"
           >
             {isPurchasing ? (
               <ActivityIndicator color={Colors.textInverse} size="small" />
+            ) : nativeRcMissing ? (
+              <Text style={styles.subscribeText}>Unavailable</Text>
+            ) : isOfferingsPending ? (
+              <Text style={styles.subscribeText}>Loading plans…</Text>
+            ) : showPlansError ? (
+              isOfferingsFetching ? (
+                <ActivityIndicator color={Colors.textInverse} size="small" />
+              ) : (
+                <Text style={styles.subscribeText}>Retry</Text>
+              )
             ) : (
               <Text style={styles.subscribeText}>
                 {selectedPlan === 'annual' ? `Subscribe — ${annualPrice}/yr` : `Subscribe — ${monthlyPrice}/mo`}
@@ -386,11 +501,29 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
+  topBadgeRow: {
+    alignItems: 'center',
+    gap: 6,
+  },
   topBadgeText: {
     fontSize: 11,
     fontWeight: '800' as const,
     color: Colors.accent,
     letterSpacing: 1.2,
+  },
+  adminPreviewBadge: {
+    backgroundColor: Colors.info + '20',
+    borderWidth: 1,
+    borderColor: Colors.info + '70',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  adminPreviewBadgeText: {
+    color: Colors.info,
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
   },
   closeButton: {
     width: 36,
@@ -482,6 +615,63 @@ const styles = StyleSheet.create({
   plansSection: {
     gap: 10,
     marginBottom: 16,
+  },
+  plansLoading: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    borderWidth: 1,
+    borderColor: '#EDE9E3',
+    minHeight: 160,
+  },
+  plansLoadingText: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    fontWeight: '600' as const,
+  },
+  plansErrorCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#EDE9E3',
+    alignItems: 'center',
+    gap: 10,
+  },
+  plansErrorTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  plansErrorBody: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryOfferingsButton: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    minWidth: 140,
+  },
+  retryOfferingsButtonDisabled: {
+    opacity: 0.75,
+  },
+  retryOfferingsText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.textInverse,
   },
   planCard: {
     backgroundColor: '#fff',

@@ -363,7 +363,7 @@ export default function AdminMenuScreen() {
                 style={styles.actionRow}
                 onPress={() => {
                   Haptics.selectionAsync();
-                  router.push('/paywall');
+                  router.push('/paywall?forcePreview=1');
                 }}
                 activeOpacity={0.7}
                 testID="admin-show-paywall"

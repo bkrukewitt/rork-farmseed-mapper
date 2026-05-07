@@ -73,19 +73,15 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     queryKey: ['rc-offerings'],
     queryFn: async (): Promise<PurchasesOffering | null> => {
       if (!rcConfigured) return null;
-      try {
-        console.log('[RC] Fetching offerings...');
-        const offerings = await Purchases.getOfferings();
-        console.log('[RC] Current offering:', offerings.current?.identifier);
-        console.log('[RC] Available packages:', offerings.current?.availablePackages?.map(p => p.identifier));
-        return offerings.current ?? null;
-      } catch (err) {
-        console.warn('[RC] Error fetching offerings:', err);
-        return null;
-      }
+      console.log('[RC] Fetching offerings...');
+      const offerings = await Purchases.getOfferings();
+      console.log('[RC] Current offering:', offerings.current?.identifier);
+      console.log('[RC] Available packages:', offerings.current?.availablePackages?.map(p => p.identifier));
+      return offerings.current ?? null;
     },
     enabled: rcConfigured,
     staleTime: 300_000,
+    retry: 2,
   });
 
   const purchaseMutation = useMutation({
@@ -141,6 +137,24 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     void queryClient.invalidateQueries({ queryKey: ['rc-customer-info'] });
   }, [queryClient]);
 
+  const refreshOfferings = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['rc-offerings'] });
+  }, [queryClient]);
+
+  const offeringsError = offeringsQuery.error as Error | null | undefined;
+  /** First fetch only — use for full plans-section spinner */
+  const isOfferingsPending = rcConfigured && offeringsQuery.isPending;
+  /** Any offerings request in flight — use for Retry button spinner */
+  const isOfferingsFetching = rcConfigured && offeringsQuery.isFetching;
+
+  /** Fetched successfully but RevenueCat returned no monthly/annual packages */
+  const noPurchasePlansAvailable =
+    rcConfigured &&
+    offeringsQuery.isSuccess &&
+    !monthlyPackage &&
+    !annualPackage &&
+    (offering?.availablePackages?.length ?? 0) === 0;
+
   const purchase = useCallback(
     (pkg: PurchasesPackage) => purchaseMutation.mutateAsync(pkg),
     [purchaseMutation]
@@ -168,6 +182,11 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     purchaseError: purchaseMutation.error,
     restoreError: restoreMutation.error,
     refreshCustomerInfo,
+    refreshOfferings,
+    offeringsError: offeringsError ?? null,
+    isOfferingsPending,
+    isOfferingsFetching,
+    noPurchasePlansAvailable,
     activeSubscription,
     expirationDate,
     willRenew,
@@ -179,6 +198,8 @@ export const [SubscriptionProvider, useSubscription] = createContextHook(() => {
     purchase, restore,
     purchaseMutation.isPending, purchaseMutation.error,
     restoreMutation.isPending, restoreMutation.error, refreshCustomerInfo,
+    refreshOfferings, offeringsError, isOfferingsPending, isOfferingsFetching,
+    noPurchasePlansAvailable,
     activeSubscription, expirationDate, willRenew, productIdentifier,
   ]);
 });

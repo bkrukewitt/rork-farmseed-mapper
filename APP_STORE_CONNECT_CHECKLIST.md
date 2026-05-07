@@ -19,7 +19,6 @@ Use this when responding to Apple or preparing the next submission.
 Keys must exist as **EAS Build** environment variables so they are baked into the binary at compile time (a local `.env` alone does **not** fix a released build).
 
 ```bash
-cd expo
 eas env:list --environment production
 ```
 

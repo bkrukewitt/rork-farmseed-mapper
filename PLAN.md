@@ -1,36 +1,51 @@
-# Add "Try Demo" preview mode with 1 free scan
-
-## What's changing
-
-Add a **Try Demo** option on the paywall so people can try the app before subscribing. They get **1 free scan** of a seed tag, then the paywall reappears when they try to do more.
+# Add Subscription Paywall with RevenueCat
 
 ## Features
 
-- **Try Demo button** on the paywall, placed under the Subscribe button with a short explanation.
-- Demo description shown on paywall:
-  - ✅ Scan 1 seed tag to see how it works
-  - ✅ Browse the map and sample screens
-  - ❌ Saving entries, fields, and inventory is locked
-  - ❌ Sync and team features are locked
-- **1 free scan** — the first time a demo user taps "Scan seed tag QR" or "Scan from photo" it works normally. After that first scan, attempting another scan opens the paywall.
-- **Locked actions show the paywall** — trying to save an entry, add a field, add inventory, or edit items will bring up the paywall (same behavior as today, just now reachable from demo).
-- **Demo banner** shown at the top of the main screens while in demo mode, with a "Subscribe" shortcut and a scan counter ("1 free scan remaining" / "Demo scan used").
-- **Exit demo anytime** from Settings → tapping "Subscribe" opens the paywall; a new "Exit Demo" row ends demo mode.
-- Demo state is **remembered across app restarts** so the 1-scan limit can't be bypassed by closing the app.
-- Once a user subscribes, demo mode ends automatically and the scan counter resets.
+- [x] **Subscription plans**: Monthly and Annual options — no "Pro" branding, just "Seed Tracker" subscription
+- [x] **Free preview mode**: Users can browse the app freely (view map, look at existing data) but cannot add or modify any data
+- [x] **Paywall on locked actions**: When a user tries to add an entry, add a field, add inventory, upload data, or edit existing items, the paywall appears
+- [x] **Paywall on first launch**: After onboarding, the paywall is shown once so users know about the subscription — they can dismiss it to preview the app
+- [x] **Restore purchases**: Button on the paywall and in Settings to restore previous purchases
+- [x] **Subscription status in Settings**: Shows current plan status and a "Manage Subscription" option
 
-## Design
+## Locked Actions (require subscription)
 
-- **Try Demo button** styled as a subtle secondary button (outline / ghost style) beneath the main Subscribe button so it doesn't compete with the purchase call-to-action.
-- Short 2-line helper text above the button: "Just browsing? Try the demo — 1 free seed scan, no account needed."
-- **Demo banner** at the top of the home/map screen: soft amber background with a small sparkle icon, text like "Demo mode · 1 free scan left", and a compact "Subscribe" pill on the right.
-- When the scan is used, banner switches to "Demo scan used · Subscribe to keep scanning".
-- Smooth fade-in for the banner, gentle haptic when the paywall appears from a locked action.
+- [x] Adding new seed entries
+- [x] Adding new fields
+- [x] Adding new inventory items
+- [x] Uploading fields or inventory from files
+- [x] Editing existing entries, fields, or inventory
+- [x] Farm sync/sharing features
 
-## Screens affected
+## Free Actions (no subscription needed)
 
-- **Paywall screen** — adds the Try Demo button and helper text at the bottom.
-- **Home / Map screen** — shows the demo banner at the top when in demo mode.
-- **Add Entry screen** — allows the first scan; subsequent scans trigger the paywall.
-- **Settings screen** — shows demo status and an "Exit Demo" action when active.
-- **Onboarding** — unchanged; after onboarding the paywall still appears, but now with the demo option available.
+- [x] Viewing the map with existing pins
+- [x] Browsing entries, fields, and inventory lists
+- [x] Viewing entry/field/inventory details
+- [x] Viewing settings
+- [x] Onboarding
+
+## Paywall Design
+
+- [x] **Farm-themed, clean & minimal** — earthy warm background with subtle grain/field texture feel
+- [x] Top section: Leaf icon with "Seed Tracker" title and a short tagline like "Track every seed, from bag to field"
+- [x] **Three short benefit highlights** with small icons (map pin, camera, sync) — one line each, no long feature lists
+- [x] **Plan toggle**: Monthly vs Annual side-by-side cards, annual card shows savings badge
+- [x] Prices pulled live from RevenueCat offerings
+- [x] Large "Subscribe" button in the app's orange primary color
+- [x] "Restore Purchases" link below the button
+- [x] Dismissible with an X button so users can preview the app
+- [x] Earthy green and warm orange color palette matching the existing app theme
+
+## Settings Changes
+
+- [x] New "Subscription" row showing current status (Active / Not Subscribed)
+- [x] Tapping it opens the paywall if not subscribed, or shows manage options if subscribed
+
+## Technical Flow
+
+- [x] RevenueCat SDK integrated and configured at app startup
+- [x] Subscription state stored in a shared context so all screens can check access
+- [x] All "add" and "edit" buttons check subscription status before navigating — if not subscribed, the paywall opens as a modal instead
+- [x] Three RevenueCat store apps will be configured (Test Store, iOS App Store, Android Play Store) with matching environment variables
